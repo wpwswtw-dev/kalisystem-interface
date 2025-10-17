@@ -39,31 +39,57 @@
     </div>
     
     <script>
-        // Get pending orders
-        const pendingOrders = localStorage.getItem('tagcreator_pending_orders');
-        const metadata = localStorage.getItem('tagcreator_current_order_metadata');
-        
-        if (pendingOrders) {
+        // Try API first, fallback to localStorage
+        async function loadDebug() {
             try {
-                const orders = JSON.parse(pendingOrders);
-                document.getElementById('pending-orders').textContent = JSON.stringify(orders, null, 2);
+                const [pResp, mResp] = await Promise.all([
+                    fetch('/api/data/pendingOrders'),
+                    fetch('/api/data/currentOrderMetadata')
+                ]);
+
+                if (pResp.ok) {
+                    const orders = await pResp.json();
+                    document.getElementById('pending-orders').textContent = JSON.stringify(orders, null, 2);
+                } else {
+                    throw new Error('API no data');
+                }
+
+                if (mResp.ok) {
+                    const meta = await mResp.json();
+                    document.getElementById('metadata').textContent = JSON.stringify(meta, null, 2);
+                } else {
+                    throw new Error('API no metadata');
+                }
             } catch (e) {
-                document.getElementById('pending-orders').textContent = 'Error parsing: ' + e.message;
+                // fallback to localStorage
+                const pendingOrders = localStorage.getItem('tagcreator_pending_orders');
+                const metadata = localStorage.getItem('tagcreator_current_order_metadata');
+
+                if (pendingOrders) {
+                    try {
+                        const orders = JSON.parse(pendingOrders);
+                        document.getElementById('pending-orders').textContent = JSON.stringify(orders, null, 2);
+                    } catch (e2) {
+                        document.getElementById('pending-orders').textContent = 'Error parsing: ' + e2.message;
+                    }
+                } else {
+                    document.getElementById('pending-orders').textContent = 'No pending orders found';
+                }
+
+                if (metadata) {
+                    try {
+                        const meta = JSON.parse(metadata);
+                        document.getElementById('metadata').textContent = JSON.stringify(meta, null, 2);
+                    } catch (e2) {
+                        document.getElementById('metadata').textContent = 'Error parsing: ' + e2.message;
+                    }
+                } else {
+                    document.getElementById('metadata').textContent = 'No metadata found';
+                }
             }
-        } else {
-            document.getElementById('pending-orders').textContent = 'No pending orders found';
         }
-        
-        if (metadata) {
-            try {
-                const meta = JSON.parse(metadata);
-                document.getElementById('metadata').textContent = JSON.stringify(meta, null, 2);
-            } catch (e) {
-                document.getElementById('metadata').textContent = 'Error parsing: ' + e.message;
-            }
-        } else {
-            document.getElementById('metadata').textContent = 'No metadata found';
-        }
+
+        loadDebug();
     </script>
 </body>
 </html>

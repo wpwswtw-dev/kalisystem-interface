@@ -1,4 +1,5 @@
 import { Item, Category, Supplier, Store, Tag, AppSettings, CompletedOrder, PendingOrder, OrderItem, CurrentOrderMetadata } from '@/types';
+import { setItem as kvSetItem, removeItem as kvRemoveItem } from '@/lib/kvStorage';
 
 export type StorageData = {
   items?: Item[];
@@ -103,6 +104,18 @@ class StorageManager {
       const data = localStorage.getItem(key);
       const parsed = data ? JSON.parse(data) : defaultValue;
       this.cache.set(key, parsed);
+
+      // Attempt to sync read from remote in background (no await)
+      // This warms the Supabase-backed storage for other clients.
+      (async () => {
+        try {
+          // ensure remote has an up-to-date value
+          await kvSetItem(key, parsed as any);
+        } catch {
+          // ignore
+        }
+      })();
+
       return parsed;
     } catch {
       return defaultValue;
@@ -112,6 +125,14 @@ class StorageManager {
   private set<T>(key: string, value: T): void {
     this.cache.set(key, value);
     localStorage.setItem(key, JSON.stringify(value));
+    // write-through to Supabase-backed kv storage (fire-and-forget)
+    (async () => {
+      try {
+        await kvSetItem(key, value as any);
+      } catch (e) {
+        // ignore
+      }
+    })();
     // Sync to API in background
     this.syncToApi(key, value);
   }
@@ -237,7 +258,11 @@ class StorageManager {
 
   // Clear all data
   clearAll(): void {
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    Object.values(STORAGE_KEYS).forEach(key => {
+      try { localStorage.removeItem(key); } catch {}
+      // also remove remote entries (async)
+      (async () => { try { await kvRemoveItem(key); } catch {} })();
+    });
     this.cache.clear();
   }
 }

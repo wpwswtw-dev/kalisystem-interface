@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Download, Upload, Database, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage } from '@/lib/storage';
+import { getItem as kvGetItem, setItem as kvSetItem } from '@/lib/kvStorage';
 import { useState, useEffect } from 'react';
 
 // Persistent autosave setting key
@@ -17,14 +18,33 @@ export default function Settings() {
   const { exportData, importData, loadDefaultData, items, categories, suppliers, tags } = useApp();
   const [importUrl, setImportUrl] = useState('');
   // Autosave toggle state, enabled by default
-  const [autosave, setAutosave] = useState(() => {
-    const stored = localStorage.getItem(AUTOSAVE_KEY);
-    return stored === null ? true : stored === 'true';
-  });
+  const [autosave, setAutosave] = useState<boolean>(true);
+
+  // Hydrate autosave preference from persistent storage
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const stored = await kvGetItem(AUTOSAVE_KEY);
+        if (!mounted) return;
+        if (stored === null) return; // keep default
+        setAutosave(stored === 'true');
+      } catch {
+        // ignore, keep default
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   // Persist autosave setting
   useEffect(() => {
-    localStorage.setItem(AUTOSAVE_KEY, autosave ? 'true' : 'false');
+    (async () => {
+      try {
+        await kvSetItem(AUTOSAVE_KEY, autosave ? 'true' : 'false');
+      } catch {
+        // ignore
+      }
+    })();
   }, [autosave]);
 
   const handleExport = () => {
