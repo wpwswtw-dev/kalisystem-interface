@@ -122,49 +122,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           loadDefaultData();
         }
       } catch (error) {
-        console.error('Failed to load from database, falling back to local storage:', error);
-        const storedItems = storage.getItems();
-        const storedCategories = storage.getCategories();
-        const storedSuppliers = storage.getSuppliers();
-        const storedTags = storage.getTags();
-        const storedSettings = storage.getSettings();
-        const storedCompletedOrders = storage.getCompletedOrders();
-        const storedPendingOrders = storage.getPendingOrders();
-        const storedCurrentOrder = storage.getCurrentOrder();
-        const storedCurrentOrderMetadata = storage.getCurrentOrderMetadata();
-
-        if (storedItems.length > 0) {
-          const categories = [...storedCategories];
-          const hasWishlist = categories.some(c => c.name === 'Wishlist');
-          const hasNewItem = categories.some(c => c.name === 'New Item');
-
-          if (!hasWishlist) {
-            categories.push({
-              id: nanoid(),
-              name: 'Wishlist',
-              emoji: '⭐'
-            });
-          }
-          if (!hasNewItem) {
-            categories.push({
-              id: nanoid(),
-              name: 'New Item',
-              emoji: '🆕'
-            });
-          }
-
-          setItems(storedItems);
-          setCategories(categories);
-          setSuppliers(storedSuppliers);
-          setTags(storedTags);
-          setSettings(storedSettings);
-          setCompletedOrders(storedCompletedOrders);
-          setPendingOrders(storedPendingOrders);
-          setCurrentOrder(storedCurrentOrder);
-          setCurrentOrderMetadata(storedCurrentOrderMetadata);
-        } else {
-          loadDefaultData();
-        }
+        console.error('Failed to load from database:', error);
+        loadDefaultData();
       }
       setInitialized(true);
     };
@@ -177,64 +136,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return settings.autosave !== false; // Default to true if not explicitly set to false
   };
 
-  // Save to storage when data changes
+  // Save to database when data changes
   useEffect(() => {
     if (initialized && isAutosaveEnabled()) {
-      storage.setItems(items);
       SupabaseSync.syncItems(items).catch(console.error);
     }
-  }, [items, initialized]);
+  }, [items, initialized, settings.autosave]);
 
   useEffect(() => {
     if (initialized && isAutosaveEnabled()) {
-      storage.setCategories(categories);
       SupabaseSync.syncCategories(categories).catch(console.error);
     }
-  }, [categories, initialized]);
+  }, [categories, initialized, settings.autosave]);
 
   useEffect(() => {
     if (initialized && isAutosaveEnabled()) {
-      storage.setSuppliers(suppliers);
       SupabaseSync.syncSuppliers(suppliers).catch(console.error);
     }
-  }, [suppliers, initialized]);
+  }, [suppliers, initialized, settings.autosave]);
 
   useEffect(() => {
     if (initialized && isAutosaveEnabled()) {
-      storage.setTags(tags);
       SupabaseSync.syncTags(tags).catch(console.error);
     }
-  }, [tags, initialized]);
+  }, [tags, initialized, settings.autosave]);
 
   useEffect(() => {
     if (initialized) {
-      storage.setSettings(settings);
       SupabaseSync.syncSettings(settings).catch(console.error);
     }
   }, [settings, initialized]);
 
   useEffect(() => {
     if (initialized) {
-      storage.setCompletedOrders(completedOrders);
-    }
-  }, [completedOrders, initialized]);
-
-  useEffect(() => {
-    if (initialized) {
-      storage.setPendingOrders(pendingOrders);
       SupabaseSync.syncPendingOrders(pendingOrders).catch(console.error);
     }
   }, [pendingOrders, initialized]);
 
-
-  // Persist current order and metadata
   useEffect(() => {
     if (initialized && isAutosaveEnabled()) {
-      storage.setCurrentOrder(currentOrder);
-      storage.setCurrentOrderMetadata(currentOrderMetadata);
       SupabaseSync.syncCurrentOrder(currentOrder, currentOrderMetadata).catch(console.error);
     }
-  }, [currentOrder, currentOrderMetadata, initialized]);
+  }, [currentOrder, currentOrderMetadata, initialized, settings.autosave]);
 
   const loadDefaultData = () => {
     try {
@@ -451,18 +394,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Import/Export
   const exportData = () => {
-    return storage.exportData();
+    return {
+      items,
+      categories,
+      suppliers,
+      tags,
+      settings,
+      completedOrders,
+      pendingOrders,
+      currentOrder,
+      currentOrderMetadata,
+    };
   };
 
   const importData = (data: StorageData) => {
-    storage.importData(data);
-    setItems(storage.getItems());
-    setCategories(storage.getCategories());
-    setSuppliers(storage.getSuppliers());
-    setTags(storage.getTags());
-    setSettings(storage.getSettings());
-    setCompletedOrders(storage.getCompletedOrders());
-    setPendingOrders(storage.getPendingOrders());
+    if (data.items) setItems(data.items);
+    if (data.categories) setCategories(data.categories);
+    if (data.suppliers) setSuppliers(data.suppliers);
+    if (data.tags) setTags(data.tags);
+    if (data.settings) setSettings(data.settings);
+    if (data.completedOrders) setCompletedOrders(data.completedOrders);
+    if (data.pendingOrders) setPendingOrders(data.pendingOrders);
   };
 
   return (

@@ -7,45 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Download, Upload, Database, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage } from '@/lib/storage';
-import { getItem as kvGetItem, setItem as kvSetItem } from '@/lib/kvStorage';
-import { useState, useEffect } from 'react';
-
-// Persistent autosave setting key
-const AUTOSAVE_KEY = 'autosave-enabled';
+import { useState } from 'react';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { exportData, importData, loadDefaultData, items, categories, suppliers, tags } = useApp();
+  const { exportData, importData, loadDefaultData, items, categories, suppliers, tags, settings, updateSettings } = useApp();
   const [importUrl, setImportUrl] = useState('');
-  // Autosave toggle state, enabled by default
-  const [autosave, setAutosave] = useState<boolean>(true);
-
-  // Hydrate autosave preference from persistent storage
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const stored = await kvGetItem(AUTOSAVE_KEY);
-        if (!mounted) return;
-        if (stored === null) return; // keep default
-        setAutosave(stored === 'true');
-      } catch {
-        // ignore, keep default
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  // Persist autosave setting
-  useEffect(() => {
-    (async () => {
-      try {
-        await kvSetItem(AUTOSAVE_KEY, autosave ? 'true' : 'false');
-      } catch {
-        // ignore
-      }
-    })();
-  }, [autosave]);
 
   const handleExport = () => {
     const data = exportData();
@@ -157,14 +124,14 @@ export default function Settings() {
               <input
                 id="autosave-toggle"
                 type="checkbox"
-                checked={autosave}
-                onChange={e => setAutosave(e.target.checked)}
+                checked={settings.autosave !== false}
+                onChange={e => updateSettings({ autosave: e.target.checked })}
                 className="accent-primary"
                 data-testid="toggle-autosave"
               />
               <span className="font-medium">Autosave</span>
             </label>
-            <span className="text-xs text-muted-foreground">Automatically save changes (persistent)</span>
+            <span className="text-xs text-muted-foreground">Automatically save changes to database</span>
           </div>
         </Card>
 
