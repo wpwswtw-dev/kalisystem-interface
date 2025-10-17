@@ -1,0 +1,98 @@
+[
+  {
+    "id": "default_supplier",
+    "name": "default_supplier",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "pickup"
+  },
+  {
+    "id": "pisey",
+    "name": "pisey",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "pp-distributor",
+    "name": "pp distributor",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "takaway-shop",
+    "name": "Takaway shop",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "pizza+",
+    "name": "pizza+",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "lees",
+    "name": "lees",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "baker-supplies",
+    "name": "baker supplies",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "samu",
+    "name": "samu",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "pickup"
+  },
+  {
+    "id": "rodina",
+    "name": "rodina",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "market",
+    "name": "market",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "pickup"
+  },
+  {
+    "id": "chanorai",
+    "name": "chanorai",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "coca-company",
+    "name": "coca company",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "drink-shop",
+    "name": "drink shop",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "pickup"
+  },
+  {
+    "id": "angkor-company",
+    "name": "angkor company",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "pickup"
+  },
+  {
+    "id": "kofi",
+    "name": "kofi",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "delivery"
+  },
+  {
+    "id": "savuth",
+    "name": "savuth",
+    "defaultPaymentMethod": "cash",
+    "defaultOrderType": "pickup"
+  }
+]

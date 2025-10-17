@@ -1,0 +1,232 @@
+[
+  {
+    "id": "category",
+    "name": "category",
+    "emoji": "📦"
+  },
+  {
+    "id": "notset",
+    "name": "Notset",
+    "emoji": "❓"
+  },
+  {
+    "id": "cleaning-for-kitchen",
+    "name": "Cleaning for kitchen",
+    "emoji": "🧼"
+  },
+  {
+    "id": "box",
+    "name": "Box",
+    "emoji": "📦"
+  },
+  {
+    "id": "️ustensil",
+    "name": "️Ustensil",
+    "emoji": "🛍"
+  },
+  {
+    "id": "️plastic-bag",
+    "name": "️Plastic bag",
+    "emoji": "🛍"
+  },
+  {
+    "id": "kitchen-roll",
+    "name": "kitchen roll",
+    "emoji": "🎁"
+  },
+  {
+    "id": "cheese",
+    "name": "Cheese",
+    "emoji": "🧀"
+  },
+  {
+    "id": "cream",
+    "name": "Cream",
+    "emoji": "🥣"
+  },
+  {
+    "id": "eggs",
+    "name": "Eggs",
+    "emoji": "🥚"
+  },
+  {
+    "id": "butter",
+    "name": "Butter",
+    "emoji": "🧈"
+  },
+  {
+    "id": "french-fries",
+    "name": "French fries",
+    "emoji": "🍟"
+  },
+  {
+    "id": "pork",
+    "name": "Pork",
+    "emoji": "🐷"
+  },
+  {
+    "id": "beef",
+    "name": "Beef",
+    "emoji": "🐮"
+  },
+  {
+    "id": "chicken",
+    "name": "Chicken",
+    "emoji": "🐔"
+  },
+  {
+    "id": "fish",
+    "name": "Fish",
+    "emoji": "🐟"
+  },
+  {
+    "id": "seafood",
+    "name": "Seafood",
+    "emoji": "🦞"
+  },
+  {
+    "id": "picked",
+    "name": "Picked",
+    "emoji": "🥒"
+  },
+  {
+    "id": "rice",
+    "name": "Rice",
+    "emoji": "🍚"
+  },
+  {
+    "id": "noodle",
+    "name": "Noodle",
+    "emoji": "🍜"
+  },
+  {
+    "id": "baking",
+    "name": "Baking",
+    "emoji": "🍞"
+  },
+  {
+    "id": "can",
+    "name": "Can",
+    "emoji": "🥫"
+  },
+  {
+    "id": "herbs-&-spices",
+    "name": "Herbs & spices",
+    "emoji": "🌿"
+  },
+  {
+    "id": "seasoning",
+    "name": "Seasoning",
+    "emoji": "🧂"
+  },
+  {
+    "id": "sauce",
+    "name": "Sauce",
+    "emoji": "🫙"
+  },
+  {
+    "id": "veg",
+    "name": "Veg",
+    "emoji": "🥦"
+  },
+  {
+    "id": "herbs-(fresh)",
+    "name": "Herbs (fresh)",
+    "emoji": "🌿"
+  },
+  {
+    "id": "sodas",
+    "name": "Sodas",
+    "emoji": "🥤"
+  },
+  {
+    "id": "water",
+    "name": "Water",
+    "emoji": "💧"
+  },
+  {
+    "id": "fruit-juices",
+    "name": "Fruit juices",
+    "emoji": "🧃"
+  },
+  {
+    "id": "syrup",
+    "name": "Syrup",
+    "emoji": "🧋"
+  },
+  {
+    "id": "coffee",
+    "name": "Coffee",
+    "emoji": "☕"
+  },
+  {
+    "id": "milk",
+    "name": "Milk",
+    "emoji": "🥛"
+  },
+  {
+    "id": "tea",
+    "name": "Tea",
+    "emoji": "🫖"
+  },
+  {
+    "id": "beers",
+    "name": "Beers",
+    "emoji": "🍺"
+  },
+  {
+    "id": "wines",
+    "name": "Wines",
+    "emoji": "🍷"
+  },
+  {
+    "id": "cigs",
+    "name": "Cigs",
+    "emoji": "🚬"
+  },
+  {
+    "id": "spirits",
+    "name": "Spirits",
+    "emoji": "🥃"
+  },
+  {
+    "id": "fruits",
+    "name": "Fruits",
+    "emoji": "🍑"
+  },
+  {
+    "id": "desserts",
+    "name": "Desserts",
+    "emoji": "🍨"
+  },
+  {
+    "id": "️cup",
+    "name": "️Cup",
+    "emoji": "🛍"
+  },
+  {
+    "id": "️ustensils",
+    "name": "️Ustensils",
+    "emoji": "🛍"
+  },
+  {
+    "id": "️office",
+    "name": "️Office",
+    "emoji": "🖨"
+  },
+  {
+    "id": "cleaning",
+    "name": "Cleaning",
+    "emoji": "🧼"
+  },
+  {
+    "id": "oyiif3hYOE3_8OvIADLh2",
+    "name": "Wishlist",
+    "emoji": "⭐"
+  },
+  {
+    "id": "KZ8FNQqYktW3vQCXKxzsJ",
+    "name": "New Item",
+    "emoji": "🆕"
+  }
+]
