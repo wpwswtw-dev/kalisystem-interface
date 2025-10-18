@@ -46,10 +46,33 @@ export default function Home(): JSX.Element {
   const [newTagCategory, setNewTagCategory] = useState('');
   const [supplierToEdit, setSupplierToEdit] = useState<Supplier | null>(null);
 
+  // Get synced counts and status
+  const syncedStats = useMemo(() => {
+    const itemCount = items?.length || 0;
+    const categoryCount = categories?.length || 0;
+    const supplierCount = suppliers?.length || 0;
+    const tagCount = tags?.length || 0;
+
+    // Verify data presence
+    const hasItems = itemCount > 0;
+    const hasCategories = categoryCount > 0;
+    const hasSuppliers = supplierCount > 0;
+    const hasTags = tagCount > 0;
+    
+    return {
+      itemCount,
+      categoryCount,
+      supplierCount,
+      tagCount,
+      isDataSynced: hasItems && hasCategories && hasSuppliers,
+      totalRecords: itemCount + categoryCount + supplierCount + tagCount
+    };
+  }, [items, categories, suppliers, tags]);
+
   const stats = [
-    { 
+    {
       label: 'Items',
-      value: items.length,
+      value: syncedStats.itemCount,
       icon: Package,
       color: 'text-primary',
       onClick: () => navigate('/items'),
@@ -57,7 +80,7 @@ export default function Home(): JSX.Element {
     },
     { 
       label: 'Categories',
-      value: categories.length,
+      value: syncedStats.categoryCount,
       icon: Tag,
       color: 'text-secondary',
       onClick: () => navigate('/items?groupBy=category'),
@@ -65,7 +88,7 @@ export default function Home(): JSX.Element {
     },
     { 
       label: 'Suppliers',
-      value: suppliers.length,
+      value: syncedStats.supplierCount,
       icon: Users,
       color: 'text-accent',
       onClick: () => navigate('/items?groupBy=supplier'),
@@ -170,7 +193,20 @@ export default function Home(): JSX.Element {
           <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             KaliSystem 
           </h1>
-          <p className="text-muted-foreground">Scalable Ordering Sytem</p>
+          <p className="text-muted-foreground">Scalable Ordering System</p>
+          {/* Sync Status */}
+          <div className={`flex items-center justify-center gap-2 text-sm ${
+            syncedStats.isDataSynced ? 'text-green-500' : 'text-yellow-500'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              syncedStats.isDataSynced ? 'bg-green-500' : 'bg-yellow-500'
+            }`} />
+            <span>
+              {syncedStats.isDataSynced 
+                ? `${syncedStats.totalRecords} records synced`
+                : 'Syncing data...'}
+            </span>
+          </div>
         </div>
 
         {/* Stats */}
