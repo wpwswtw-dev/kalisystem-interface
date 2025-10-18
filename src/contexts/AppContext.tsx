@@ -26,6 +26,7 @@ import * as categoryModule from '@/lib/categoryOperations';
 import * as supplierModule from '@/lib/supplierOperations';
 import * as tagModule from '@/lib/tagOperations';
 import * as orderModule from '@/lib/orderOperations';
+import * as pendingOrderModule from '@/lib/pendingOrderOperations';
 import * as settingsModule from '@/lib/settingsOperations';
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -240,6 +241,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         tagOps,
         orderOps,
         settingsOps,
+        pendingOrderOps: {
+          addOne: pendingOrderModule.addOne,
+          updateOne: pendingOrderModule.updateOne,
+          deleteOne: pendingOrderModule.deleteOne,
+          onStateChange: setPendingOrders,
+          onError: (error: Error) => console.error('Pending order operation failed:', error)
+        },
         
         // Data management
         exportData,

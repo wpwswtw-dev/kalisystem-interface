@@ -20,7 +20,7 @@ import { useItemManagement } from '@/hooks/use-item-management';
 import { format } from 'date-fns';
 
 export default function Home(): JSX.Element {
-  const { items, categories, suppliers, tags, currentOrder, completedOrders, addTag, updateSupplier, addCategory } = useApp();
+  const { items, categories, suppliers, tags, currentOrder, completedOrders, tagOps, supplierOps, categoryOps } = useApp();
   const navigate = useNavigate();
   const { handleAddItem, handleAddCategory, handleAddSupplier } = useItemManagement();
   
@@ -163,14 +163,14 @@ export default function Home(): JSX.Element {
     let categoryToUse = newTagData.category;
     
     if (newTagData.category === 'create-new' && newTagCategory.trim()) {
-      addCategory({
+      categoryOps.addOne({
         name: newTagCategory,
         emoji: '📁',
       });
       categoryToUse = newTagCategory;
     }
     
-    addTag({
+    tagOps.addOne({
       name: newTagData.name,
       color: newTagData.color,
       category: categoryToUse || undefined,
@@ -420,14 +420,12 @@ export default function Home(): JSX.Element {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
-                          {order.storeTags.map((tag) => (
-                            <span 
-                              key={tag} 
+                          <span 
+                              key={order.id} 
                               className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium uppercase"
                             >
-                              {tag}
+                              {order.id}
                             </span>
-                          ))}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -521,7 +519,7 @@ export default function Home(): JSX.Element {
               setData={(d) => setSupplierToEdit(d)}
               onSave={() => {
                 if (supplierToEdit) {
-                  updateSupplier(supplierToEdit.id, supplierToEdit);
+                  supplierOps.updateOne(supplierToEdit.id, supplierToEdit);
                   toast.success('Supplier updated successfully');
                   setIsEditSupplierOpen(false);
                   setSupplierToEdit(null);

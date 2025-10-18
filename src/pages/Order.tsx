@@ -69,7 +69,7 @@ import {
 
 export default function Order() {
   const navigate = useNavigate();
-  const { currentOrder, currentOrderMetadata, updateOrderItem, removeFromOrder, updateOrderMetadata, clearOrder, completeOrder, pendingOrders, updatePendingOrder, deletePendingOrder, addPendingOrder, items, addItem, updateItem } = useApp();
+  const { currentOrder, currentOrderMetadata, pendingOrders, orderOps, pendingOrderOps, items, itemOps } = useApp();
   const [selectedStore, setSelectedStore] = useState<StoreTag>(STORE_TAGS[0]);
   const [activeTab, setActiveTab] = useState<'current' | 'processing' | 'pending' | 'completed'>('current');
   const [showTagsPanel, setShowTagsPanel] = useState(false);
@@ -122,7 +122,9 @@ export default function Order() {
 
     const paymentEmojis: Record<PaymentMethod, string> = {
       'COD': '💰',
-      'Aba': '💳',
+      'Cash': '💵',
+      'Card': '💳',
+      'Aba': '🏦',
       'TrueMoney': '🧧',
       'CreditLine': '💸',
     };
@@ -211,62 +213,68 @@ export default function Order() {
     }
   };
 
-  const handleCompleteOrder = () => {
-    completeOrder();
+  const handleCompleteOrder = async () => {
+    await orderOps.completeOrder();
     toast.success('Order completed successfully!');
   };
 
-  const handleSendOrder = () => {
+  const handleSendOrder = async () => {
     if (currentOrder.length === 0) return;
 
     const supplierGroups = groupBySupplier();
     const suppliers = Object.keys(supplierGroups);
 
-    suppliers.forEach(supplier => {
+    const createOrders = suppliers.map(supplier => {
       const items = supplierGroups[supplier].map(oi => ({
         item: oi.item,
         quantity: oi.quantity,
         isNewItem: false,
       }));
 
-      addPendingOrder({
+      return pendingOrderOps.addOne({
         supplier,
         items,
         status: 'processing',
         paymentMethod: currentOrderMetadata.paymentMethod,
         orderType: currentOrderMetadata.orderType,
         storeTag: currentOrderMetadata.store,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     });
 
-    clearOrder();
+    await Promise.all(createOrders);
+    await orderOps.deleteOne(currentOrderMetadata.id);
     toast.success('Order sent to supplier!');
   };
 
-  const handleHoldOrder = () => {
+  const handleHoldOrder = async () => {
     if (currentOrder.length === 0) return;
 
     const supplierGroups = groupBySupplier();
     const suppliers = Object.keys(supplierGroups);
 
-    suppliers.forEach(supplier => {
+    const createOrders = suppliers.map(supplier => {
       const items = supplierGroups[supplier].map(oi => ({
         item: oi.item,
         quantity: oi.quantity,
         isNewItem: false,
       }));
 
-      addPendingOrder({
+      return pendingOrderOps.addOne({
         supplier,
         items,
         status: 'pending',
         paymentMethod: currentOrderMetadata.paymentMethod,
         orderType: currentOrderMetadata.orderType,
         storeTag: currentOrderMetadata.store,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     });
 
-    clearOrder();
+    await Promise.all(createOrders);
+    await orderOps.deleteOne(currentOrderMetadata.id);
     toast.success('Order saved to pending!');
   };
 
@@ -286,7 +294,9 @@ export default function Order() {
   const handleShareCompleted = (order: PendingOrder) => {
     const paymentEmojis: Record<PaymentMethod, string> = {
       'COD': '💰',
-      'Aba': '💳',
+      'Cash': '💵',
+      'Card': '💳',
+      'Aba': '🏦',
       'TrueMoney': '🧧',
       'CreditLine': '💸',
     };
@@ -367,12 +377,12 @@ export default function Order() {
   };
 
   const handleStatusChange = (orderId: string, newStatus: PendingOrderStatus) => {
-    updatePendingOrder(orderId, { status: newStatus });
+    pendingOrderOps.updateOne(orderId, { status: newStatus });
     toast.success(`Order status updated to ${newStatus}`);
   };
 
   const handleMarkAsReceived = (orderId: string) => {
-    updatePendingOrder(orderId, { isReceived: true });
+    pendingOrderOps.updateOne(orderId, { isReceived: true });
     toast.success('Order marked as received');
   };
 
@@ -385,7 +395,7 @@ export default function Order() {
       setAmountInput('');
       setAmountDialogOpen(true);
     } else {
-      updatePendingOrder(orderId, { isPaid: true, amount: amount || order.amount });
+      pendingOrderOps.updateOne(orderId, { isPaid: true, amount: amount || order.amount });
       toast.success('Order marked as paid');
     }
   };
@@ -396,7 +406,7 @@ export default function Order() {
       toast.error('Please enter a valid amount');
       return;
     }
-    updatePendingOrder(selectedOrderId, { amount, isPaid: true });
+    pendingOrderOps.updateOne(selectedOrderId, { amount, isPaid: true });
     setAmountDialogOpen(false);
     toast.success('Amount set and order marked as paid');
   };
@@ -413,7 +423,7 @@ export default function Order() {
       toast.error('Please enter an invoice URL or upload a file');
       return;
     }
-    updatePendingOrder(selectedOrderId, { invoiceUrl: invoiceData });
+    pendingOrderOps.updateOne(selectedOrderId, { invoiceUrl: invoiceData });
     setInvoiceDialogOpen(false);
     setInvoiceUrlInput('');
     setInvoicePreview('');
@@ -615,7 +625,7 @@ export default function Order() {
                       <label className="text-sm font-medium">Order Type</label>
                       <Select
                         value={currentOrderMetadata.orderType}
-                        onValueChange={(value) => updateOrderMetadata({ orderType: value as OrderType })}
+                        onValueChange={(value) => orderOps.updateMetadata({ orderType: value as OrderType })}
                       >
                         <SelectTrigger data-testid="select-order-type">
                           <SelectValue />
@@ -635,7 +645,7 @@ export default function Order() {
                       <label className="text-sm font-medium">Store</label>
                       <Select
                         value={currentOrderMetadata.store || ''}
-                        onValueChange={(value) => updateOrderMetadata({ store: value as StoreTag })}
+                        onValueChange={(value) => orderOps.updateMetadata({ store: value as StoreTag })}
                       >
                         <SelectTrigger data-testid="select-store">
                           <SelectValue placeholder="Select store" />
@@ -655,7 +665,7 @@ export default function Order() {
                       <label className="text-sm font-medium">Payment</label>
                       <Select
                         value={currentOrderMetadata.paymentMethod || ''}
-                        onValueChange={(value) => updateOrderMetadata({ paymentMethod: value as PaymentMethod })}
+                        onValueChange={(value) => orderOps.updateMetadata({ paymentMethod: value as PaymentMethod })}
                       >
                         <SelectTrigger data-testid="select-payment">
                           <SelectValue placeholder="Select payment" />
@@ -705,13 +715,13 @@ export default function Order() {
                               <div className="flex items-center gap-2">
                                 <QuantityInput
                                   value={quantity}
-                                  onChange={(qty) => updateOrderItem(item.id, qty, storeTag)}
+                                  onChange={(qty) => orderOps.updateOrderItem(item.id, qty)}
                                   data-testid={`quantity-${item.id}`}
                                 />
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => removeFromOrder(item.id, storeTag)}
+                                  onClick={() => orderOps.removeFromOrder(item.id)}
                                   data-testid={`button-remove-${item.id}`}
                                 >
                                   <Trash2 className="w-4 h-4 text-destructive" />
@@ -825,7 +835,7 @@ export default function Order() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => deletePendingOrder(order.id)}
+                          onClick={() => pendingOrderOps.deleteOne(order.id)}
                           data-testid={`button-delete-${order.id}`}
                         >
                           <Trash2 className="w-4 h-4 text-destructive" />
@@ -913,7 +923,7 @@ export default function Order() {
                                 <Label>Payment Method</Label>
                                 <Select
                                   value={order.paymentMethod || ''}
-                                  onValueChange={(value) => updatePendingOrder(order.id, { paymentMethod: value as PaymentMethod })}
+                                  onValueChange={(value) => pendingOrderOps.updateOne(order.id, { paymentMethod: value as PaymentMethod })}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select payment method" />
@@ -931,7 +941,7 @@ export default function Order() {
                                 <Label>Order Type</Label>
                                 <Select
                                   value={order.orderType || ''}
-                                  onValueChange={(value) => updatePendingOrder(order.id, { orderType: value as OrderType })}
+                                  onValueChange={(value) => pendingOrderOps.updateOne(order.id, { orderType: value as OrderType })}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select order type" />
@@ -949,7 +959,7 @@ export default function Order() {
                                 <Label>Store</Label>
                                 <Select
                                   value={order.storeTag || ''}
-                                  onValueChange={(value) => updatePendingOrder(order.id, { storeTag: value as StoreTag })}
+                                  onValueChange={(value) => pendingOrderOps.updateOne(order.id, { storeTag: value as StoreTag })}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select store" />
@@ -1708,12 +1718,12 @@ export default function Order() {
             setAddItemModalOpen(false);
           }}
           onUpdateItemSupplier={(itemId, newSupplier) => {
-            updateItem(itemId, { supplier: newSupplier });
+            itemOps.updateOne(itemId, { supplier: newSupplier });
           }}
           onCreateNewItem={(name) => {
             const order = [...pendingOrdersFiltered, ...processingOrders].find(o => o.id === selectedOrderForAddItem);
             const supplier = order?.supplier || '';
-            addItem({
+            itemOps.addOne({
               name: name,
               category: 'New Item',
               supplier: supplier,

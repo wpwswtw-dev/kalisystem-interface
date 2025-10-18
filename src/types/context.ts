@@ -1,5 +1,5 @@
 import { Item, Category, Supplier, Tag, AppSettings, OrderItem, CompletedOrder, PendingOrder, CurrentOrderMetadata } from '@/types';
-import { ItemOperations, CategoryOperations, SupplierOperations, TagOperations, OrderOperations, SettingsOperations } from '@/types/sync';
+import { ItemOperations, CategoryOperations, SupplierOperations, TagOperations, OrderOperations, SettingsOperations, EntityOperations } from '@/types/sync';
 
 export interface AppContextType {
   // Data
@@ -20,6 +20,7 @@ export interface AppContextType {
   tagOps: TagOperations;
   orderOps: OrderOperations;
   settingsOps: SettingsOperations;
+  pendingOrderOps: EntityOperations<PendingOrder>;
 
   // Data management
   exportData: () => any;

@@ -41,7 +41,7 @@ export default function BulkOrder() {
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [storeSelectCardId, setStoreSelectCardId] = useState<string | null>(null);
   const [selectedStore, setSelectedStore] = useState<StoreTag | null>(null);
-  const { items, suppliers, addToOrder, addPendingOrder } = useApp();
+  const { items, suppliers, orderOps, pendingOrderOps } = useApp();
   const { handleAddItem, handleAddSupplier } = useItemManagement();
   const [showFullText, setShowFullText] = useState(false);
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
@@ -461,7 +461,7 @@ export default function BulkOrder() {
     let addedCount = 0;
     card.items.forEach(item => {
       if (item.matchedItem) {
-        addToOrder(item.matchedItem, item.quantity, selectedStore);
+        orderOps.addToOrder(item.matchedItem, item.quantity);
         addedCount++;
       }
     });
@@ -657,13 +657,15 @@ export default function BulkOrder() {
     const defaultPaymentMethod = supplier?.defaultPaymentMethod;
     const defaultOrderType = supplier?.defaultOrderType;
 
-    addPendingOrder({
+    pendingOrderOps.addOne({
       supplier: card.supplier,
-      items: pendingItems,
       status: 'pending',
+      items: pendingItems,
       storeTag: storeTag,
       paymentMethod: defaultPaymentMethod,
       orderType: defaultOrderType,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     let message = `Saved order for ${card.supplier}`;

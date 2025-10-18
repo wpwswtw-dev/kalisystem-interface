@@ -29,14 +29,12 @@ export default function Items() {
     items, 
     categories, 
     suppliers, 
-    addToOrder, 
-    updateItem,
-    deleteItem,
-    settings, 
-    updateSettings, 
-    addCategory, 
-    addSupplier,
-    addItem 
+    settings,
+    itemOps,
+    categoryOps,
+    supplierOps,
+    orderOps,
+    settingsOps
   } = useApp();
   
   const { handleAddItem, handleAddCategory } = useItemManagement();
@@ -109,7 +107,7 @@ export default function Items() {
       setStoreDialogOpen(true);
     } else {
       if (item.category !== 'Wishlist') {
-        updateItem(item.id, { category: 'Wishlist' });
+        itemOps.updateOne(item.id, { category: 'Wishlist' });
         toast.success(`Added ${item.name} to wishlist`);
       } else {
         toast.info(`${item.name} is already in wishlist`);
@@ -119,7 +117,7 @@ export default function Items() {
 
   const confirmAddToOrder = () => {
     if (pendingOrderItem) {
-      addToOrder(pendingOrderItem.item, pendingOrderItem.quantity, selectedStore);
+      orderOps.addToOrder(pendingOrderItem.item, pendingOrderItem.quantity);
       toast.success(`Added ${pendingOrderItem.item.name} to ${selectedStore.toUpperCase()} order`);
       setStoreDialogOpen(false);
       setPendingOrderItem(null);
@@ -321,7 +319,7 @@ export default function Items() {
                   <Button
                     onClick={() => {
                       const notSetSupplier = suppliers.find(s => s.name.toLowerCase() === 'not set');
-                      addItem({
+                      itemOps.addOne({
                         name: search,
                         category: 'New Item',
                         supplier: notSetSupplier?.name || 'not set',
