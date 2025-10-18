@@ -24,7 +24,7 @@ export async function performOperation<T>(
   onStateChange?: (loading: boolean, error: string | null) => void
 ): Promise<AsyncOperationResult> {
   return performSync(
-    { type: operationType, entity: entityType, data },
+    {   type: operationType as 'create' | 'update' | 'delete' | 'updateMetadata', entity: entityType, data },
     onStateChange
   );
 }

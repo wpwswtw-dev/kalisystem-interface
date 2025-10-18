@@ -100,6 +100,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateOrderItem: orderModule.updateOrderItem,
     removeFromOrder: orderModule.removeFromOrder,
     completeOrder: orderModule.completeOrder,
+    updateMetadata: orderModule.updateMetadata,
     onStateChange: (state: OrderState) => {
       if (state.currentOrder) setCurrentOrder(state.currentOrder);
       if (state.completedOrders) setCompletedOrders(state.completedOrders);

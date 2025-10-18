@@ -157,10 +157,12 @@ export default function Order() {
     if (!order) return '';
 
     const paymentEmojis: Record<PaymentMethod, string> = {
-      'COD': '💰',
-      'Aba': '💳',
-      'TrueMoney': '🧧',
-      'CreditLine': '💸',
+      'COD': '💵',
+      'Cash': '💵',
+      'Card': '💳',
+      'Aba': '🏦',
+      'TrueMoney': '💳',
+      'CreditLine': '💳',
     };
 
     const orderTypeEmoji = order.orderType === 'Delivery' ? '🚚' : '📦';
@@ -293,12 +295,10 @@ export default function Order() {
 
   const handleShareCompleted = (order: PendingOrder) => {
     const paymentEmojis: Record<PaymentMethod, string> = {
-      'COD': '💰',
-      'Cash': '💵',
-      'Card': '💳',
-      'Aba': '🏦',
-      'TrueMoney': '🧧',
-      'CreditLine': '💸',
+      'COD': '💵',
+      'Aba': '💳',
+      'TrueMoney': '💳',
+      'CreditLine': '💳',
     };
 
     let text = `✅ Completed Order from ${order.supplier}\n`;
@@ -827,8 +827,8 @@ export default function Order() {
                           {order.storeTag && (
                             <span className="text-sm">📌 {order.storeTag.toUpperCase()}</span>
                           )}
-                          <Badge className={`gap-1 ${getStatusColor(order.status)}`}>
-                            {getStatusIcon(order.status)}
+                          <Badge className={`gap-1 ${getStatusColor(order.status as PendingOrderStatus)}`}>
+                            {getStatusIcon(order.status as PendingOrderStatus)}
                             {order.status}
                           </Badge>
                         </div>
@@ -1142,7 +1142,7 @@ export default function Order() {
                                     <Label>Order Type</Label>
                                     <Select
                                       value={order.orderType || ''}
-                                      onValueChange={(value) => updatePendingOrder(order.id, { orderType: value as OrderType })}
+                                      onValueChange={(value) => pendingOrderOps.updateOne(order.id, { orderType: value as OrderType })}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder="Select order type" />
@@ -1195,7 +1195,7 @@ export default function Order() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => deletePendingOrder(order.id)}
+                              onClick={() => pendingOrderOps.deleteOne(order.id)}
                               data-testid={`button-delete-${order.id}`}>
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </Button>

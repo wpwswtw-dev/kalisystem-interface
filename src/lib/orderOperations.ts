@@ -1,4 +1,4 @@
-import { Item, OrderItem, OrderState } from '@/types';
+import { Item, OrderItem, CurrentOrderMetadata } from '@/types';
 import { performOperation } from './syncHelpers';
 
 export const addOne = async (orderItem: Omit<OrderItem, 'id'>): Promise<OrderItem> => {
@@ -47,8 +47,18 @@ export const removeFromOrder = async (itemId: string): Promise<void> => {
 export const completeOrder = async (): Promise<void> => {
   const result = await performOperation(
     'order',
-    'complete',
-    {},
+    'update',
+    { status: 'completed' }
   );
   if (!result.success) throw result.error;
+};
+
+export const updateMetadata = async (metadata: Partial<CurrentOrderMetadata>): Promise<CurrentOrderMetadata> => {
+  const result = await performOperation(
+    'order',
+    'updateMetadata',
+    metadata
+  );
+  if (!result.success) throw result.error;
+  return metadata as CurrentOrderMetadata;
 };

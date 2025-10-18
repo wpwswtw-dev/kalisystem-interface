@@ -8,7 +8,7 @@ export enum SyncState {
 
 export interface SyncOperation {
   id: string;
-  type: 'create' | 'update' | 'delete';
+  type: 'create' | 'update' | 'delete' | 'updateMetadata';
   entity: 'item' | 'category' | 'supplier' | 'tag' | 'order' | 'settings';
   data: any;
   timestamp: number;
@@ -156,6 +156,7 @@ export interface OrderOperations {
   updateOrderItem: (itemId: string, quantity: number) => void;
   removeFromOrder: (itemId: string) => void;
   completeOrder: () => Promise<void>;
+  updateMetadata: (metadata: Partial<CurrentOrderMetadata>) => Promise<CurrentOrderMetadata>;
 }
 export interface SettingsOperations {
   updateSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
