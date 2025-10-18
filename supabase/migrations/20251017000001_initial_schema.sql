@@ -3,7 +3,6 @@ DROP TABLE IF EXISTS items CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
 DROP TABLE IF EXISTS suppliers CASCADE;
 DROP TABLE IF EXISTS tags CASCADE;
-DROP TABLE IF EXISTS manager_tags CASCADE;
 DROP TABLE IF EXISTS pending_orders CASCADE;
 DROP TABLE IF EXISTS current_order CASCADE;
 DROP TABLE IF EXISTS settings CASCADE;
@@ -75,18 +74,6 @@ ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public access on tags" ON tags FOR ALL USING (true);
 
--- Manager tags table (keeping this for future use)
-CREATE TABLE IF NOT EXISTS manager_tags (
-  id text PRIMARY KEY,
-  username text UNIQUE NOT NULL,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE manager_tags ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public access on manager_tags" ON manager_tags FOR ALL USING (true);
-
 -- Pending orders table
 CREATE TABLE IF NOT EXISTS pending_orders (
   id text PRIMARY KEY,
@@ -133,7 +120,6 @@ CREATE TABLE IF NOT EXISTS settings (
   id text PRIMARY KEY,
   default_supplier text,
   order_template text,
-  pos_mode boolean DEFAULT true,
   autosave boolean DEFAULT true,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
@@ -181,11 +167,6 @@ CREATE TRIGGER set_timestamp_suppliers
 
 CREATE TRIGGER set_timestamp_tags
     BEFORE UPDATE ON tags
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER set_timestamp_manager_tags
-    BEFORE UPDATE ON manager_tags
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
