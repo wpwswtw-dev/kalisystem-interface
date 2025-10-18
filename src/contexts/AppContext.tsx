@@ -1,425 +1,228 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Item, Category, Supplier, Tag, AppSettings, OrderItem, CompletedOrder, PendingOrder, PendingOrderItem, CurrentOrderMetadata } from '@/types';
+import { Item, Category, Supplier, Tag, AppSettings, OrderItem, CompletedOrder, PendingOrder, CurrentOrderMetadata } from '@/types';
+import type { AppContextType } from '@/types/context';
+import type { StorageData } from '@/types/storage';
 import { storage } from '@/lib/storage';
-import type { StorageData } from '@/lib/storage';
 import { parseDefaultData } from '@/lib/dataParser';
 import { nanoid } from 'nanoid';
 import defaultDataJson from '@/default-data-new.json';
-import { SupabaseSync } from '@/lib/supabaseSync';
+import { databaseSync } from '@/lib/databaseSync';
 
-interface AppContextType {
-  items: Item[];
-  categories: Category[];
-  suppliers: Supplier[];
-  tags: Tag[];
-  settings: AppSettings;
-  currentOrder: OrderItem[];
-  currentOrderMetadata: CurrentOrderMetadata;
-  completedOrders: CompletedOrder[];
-  pendingOrders: PendingOrder[];
-  
-  addItem: (item: Omit<Item, 'id'>, customId?: string) => void;
-  updateItem: (id: string, item: Partial<Item>) => void;
-  deleteItem: (id: string) => void;
-  
-  addCategory: (category: Omit<Category, 'id'>) => void;
-  updateCategory: (id: string, category: Partial<Category>) => void;
-  deleteCategory: (id: string) => void;
-  
-  addSupplier: (supplier: Omit<Supplier, 'id'>) => void;
-  updateSupplier: (id: string, supplier: Partial<Supplier>) => void;
-  deleteSupplier: (id: string) => void;
-  
-  addTag: (tag: Omit<Tag, 'id'>) => void;
-  updateTag: (id: string, tag: Partial<Tag>) => void;
-  deleteTag: (id: string) => void;
+// Import operation types
+import { 
+  ItemOperations, 
+  CategoryOperations,
+  SupplierOperations,
+  TagOperations, 
+  OrderOperations,
+  OrderState,
+  SettingsOperations,
+  SyncState
+} from '@/types/sync';
 
-  updateSettings: (settings: Partial<AppSettings>) => void;
-  
-  addToOrder: (item: Item, quantity: number, storeTag?: string) => void;
-  updateOrderItem: (itemId: string, quantity: number, storeTag?: string) => void;
-  removeFromOrder: (itemId: string, storeTag?: string) => void;
-  updateOrderMetadata: (metadata: Partial<CurrentOrderMetadata>) => void;
-  clearOrder: () => void;
-  completeOrder: () => void;
-  
-  addPendingOrder: (order: Omit<PendingOrder, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updatePendingOrder: (id: string, order: Partial<PendingOrder>) => void;
-  deletePendingOrder: (id: string) => void;
-  
-  exportData: () => any;
-  importData: (data: any) => void;
-  loadDefaultData: () => void;
+// Import operation modules
+import * as itemModule from '@/lib/itemOperations';
+import * as categoryModule from '@/lib/categoryOperations';
+import * as supplierModule from '@/lib/supplierOperations';
+import * as tagModule from '@/lib/tagOperations';
+import * as orderModule from '@/lib/orderOperations';
+import * as settingsModule from '@/lib/settingsOperations';
+
+const AppContext = createContext<AppContextType | null>(null);
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within AppProvider');
+  }
+  return context;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+interface AppState {
+  state: SyncState;
+  error: string | null;
+  lastSynced: Date | null;
+  queueLength: number;
+}
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  // Initialize state
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [settings, setSettings] = useState<AppSettings>({ posMode: true, autosave: true });
+  const [settings, setSettings] = useState<AppSettings>({ autosave: true });
   const [currentOrder, setCurrentOrder] = useState<OrderItem[]>([]);
   const [currentOrderMetadata, setCurrentOrderMetadata] = useState<CurrentOrderMetadata>({
-    orderType: 'Delivery',
+    id: nanoid(),
+    status: 'draft',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
   const [completedOrders, setCompletedOrders] = useState<CompletedOrder[]>([]);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
-  const [initialized, setInitialized] = useState(false);
 
-  // Load data on mount
+  // Initialize operations with state management
+  const itemOps: ItemOperations = {
+    addOne: itemModule.addOne,
+    updateOne: itemModule.updateOne,
+    deleteOne: itemModule.deleteOne,
+    onStateChange: setItems,
+    onError: (error: Error) => console.error('Item operation failed:', error)
+  };
+
+  const categoryOps: CategoryOperations = {
+    addOne: categoryModule.addOne,
+    updateOne: categoryModule.updateOne,
+    deleteOne: categoryModule.deleteOne,
+    onStateChange: setCategories,
+    onError: (error: Error) => console.error('Category operation failed:', error)
+  };
+
+  const supplierOps: SupplierOperations = {
+    ...supplierModule,
+    onStateChange: setSuppliers,
+    onError: (error: Error) => console.error('Supplier operation failed:', error)
+  };
+
+  const tagOps: TagOperations = {
+    ...tagModule,
+    onStateChange: setTags,
+    onError: (error: Error) => console.error('Tag operation failed:', error)
+  };
+
+  const orderOps: OrderOperations = {
+    addOne: orderModule.addOne,
+    updateOne: orderModule.updateOne,
+    deleteOne: orderModule.deleteOne,
+    addToOrder: orderModule.addToOrder,
+    updateOrderItem: orderModule.updateOrderItem,
+    removeFromOrder: orderModule.removeFromOrder,
+    completeOrder: orderModule.completeOrder,
+    onStateChange: (state: OrderState) => {
+      if (state.currentOrder) setCurrentOrder(state.currentOrder);
+      if (state.completedOrders) setCompletedOrders(state.completedOrders);
+      if (state.pendingOrders) setPendingOrders(state.pendingOrders);
+      if (state.metadata) setCurrentOrderMetadata(state.metadata);
+    },
+    onError: (error: Error) => console.error('Order operation failed:', error)
+  };
+
+  const settingsOps: SettingsOperations = {
+    ...settingsModule,
+    onStateChange: setSettings,
+    onError: (error: Error) => console.error('Settings operation failed:', error)
+  };
+
+  // Initialize app on mount
   useEffect(() => {
-    const initializeData = async () => {
+    const initializeApp = async () => {
       try {
-        const [
-          dbItems,
-          dbCategories,
-          dbSuppliers,
-          dbTags,
-          dbSettings,
-          dbPendingOrders,
-          dbCurrentOrder
-        ] = await Promise.all([
-          SupabaseSync.getItems(),
-          SupabaseSync.getCategories(),
-          SupabaseSync.getSuppliers(),
-          SupabaseSync.getTags(),
-          SupabaseSync.getSettings(),
-          SupabaseSync.getPendingOrders(),
-          SupabaseSync.getCurrentOrder()
-        ]);
+        // First try to load from database
+        const dbData = await databaseSync.loadFromDatabase();
+        const currentOrderData = await databaseSync.getCurrentOrder();
 
-        if (dbItems.length > 0) {
-          const categories = [...dbCategories];
-          const hasWishlist = categories.some(c => c.name === 'Wishlist');
-          const hasNewItem = categories.some(c => c.name === 'New Item');
+        // Set state from database
+        setItems(dbData.items);
+        setCategories(dbData.categories);
+        setSuppliers(dbData.suppliers);
+        setTags(dbData.tags);
+        setSettings(dbData.settings);
+        setPendingOrders(dbData.pendingOrders);
+        setCurrentOrder(currentOrderData.items);
+        setCurrentOrderMetadata(currentOrderData.metadata);
 
-          if (!hasWishlist) {
-            categories.push({
-              id: nanoid(),
-              name: 'Wishlist',
-              emoji: '⭐'
-            });
-          }
-          if (!hasNewItem) {
-            categories.push({
-              id: nanoid(),
-              name: 'New Item',
-              emoji: '🆕'
-            });
-          }
-
-          setItems(dbItems);
-          setCategories(categories);
-          setSuppliers(dbSuppliers);
-          setTags(dbTags);
-          setSettings(dbSettings);
-          setPendingOrders(dbPendingOrders);
-          setCurrentOrder(dbCurrentOrder.items);
-          setCurrentOrderMetadata(dbCurrentOrder.metadata);
-        } else {
-          loadDefaultData();
-        }
+        // Update local storage
+        await storage.setAll({
+          items: dbData.items,
+          categories: dbData.categories,
+          suppliers: dbData.suppliers,
+          tags: dbData.tags,
+          settings: dbData.settings,
+          pendingOrders: dbData.pendingOrders,
+          currentOrder: currentOrderData.items,
+          currentOrderMetadata: currentOrderData.metadata
+        });
       } catch (error) {
-        console.error('Failed to load from database:', error);
-        loadDefaultData();
+        console.error('Failed to initialize app from database:', error);
+        
+        // Fallback to local storage if database fails
+        try {
+          const storedData = await storage.getAll() as StorageData;
+          
+          if (storedData.items) setItems(storedData.items);
+          if (storedData.categories) setCategories(storedData.categories);
+          if (storedData.suppliers) setSuppliers(storedData.suppliers);
+          if (storedData.tags) setTags(storedData.tags);
+          if (storedData.settings) setSettings(storedData.settings);
+          if (storedData.currentOrder) setCurrentOrder(storedData.currentOrder);
+          if (storedData.currentOrderMetadata) setCurrentOrderMetadata(storedData.currentOrderMetadata);
+          if (storedData.completedOrders) setCompletedOrders(storedData.completedOrders);
+          if (storedData.pendingOrders) setPendingOrders(storedData.pendingOrders);
+        } catch (storageError) {
+          console.error('Failed to initialize app from storage:', storageError);
+        }
       }
-      setInitialized(true);
     };
 
-    initializeData();
+    initializeApp();
   }, []);
 
-  // Check if autosave is enabled from settings
-  const isAutosaveEnabled = () => {
-    return settings.autosave !== false; // Default to true if not explicitly set to false
-  };
+  // Data management
+  const exportData = () => ({
+    items,
+    categories,
+    suppliers,
+    tags,
+    settings,
+    currentOrder,
+    currentOrderMetadata,
+    completedOrders,
+    pendingOrders,
+  });
 
-  // Save to database when data changes
-  useEffect(() => {
-    if (initialized && isAutosaveEnabled()) {
-      SupabaseSync.syncItems(items).catch(console.error);
-    }
-  }, [items, initialized, settings.autosave]);
-
-  useEffect(() => {
-    if (initialized && isAutosaveEnabled()) {
-      SupabaseSync.syncCategories(categories).catch(console.error);
-    }
-  }, [categories, initialized, settings.autosave]);
-
-  useEffect(() => {
-    if (initialized && isAutosaveEnabled()) {
-      SupabaseSync.syncSuppliers(suppliers).catch(console.error);
-    }
-  }, [suppliers, initialized, settings.autosave]);
-
-  useEffect(() => {
-    if (initialized && isAutosaveEnabled()) {
-      SupabaseSync.syncTags(tags).catch(console.error);
-    }
-  }, [tags, initialized, settings.autosave]);
-
-  useEffect(() => {
-    if (initialized) {
-      SupabaseSync.syncSettings(settings).catch(console.error);
-    }
-  }, [settings, initialized]);
-
-  useEffect(() => {
-    if (initialized) {
-      SupabaseSync.syncPendingOrders(pendingOrders).catch(console.error);
-    }
-  }, [pendingOrders, initialized]);
-
-  useEffect(() => {
-    if (initialized && isAutosaveEnabled()) {
-      SupabaseSync.syncCurrentOrder(currentOrder, currentOrderMetadata).catch(console.error);
-    }
-  }, [currentOrder, currentOrderMetadata, initialized, settings.autosave]);
-
-  const loadDefaultData = () => {
+  const importData = async (data: any) => {
     try {
-      const parsed = parseDefaultData(defaultDataJson);
-
-      // Ensure Wishlist and New Item categories exist
-      const wishlistCategory: Category = {
+      setItems(data.items || []);
+      setCategories(data.categories || []);
+      setSuppliers(data.suppliers || []);
+      setTags(data.tags || []);
+      setSettings(data.settings || { theme: 'light' });
+      setCurrentOrder(data.currentOrder || []);
+      setCurrentOrderMetadata(data.currentOrderMetadata || {
         id: nanoid(),
-        name: 'Wishlist',
-        emoji: '⭐'
-      };
-      const newItemCategory: Category = {
-        id: nanoid(),
-        name: 'New Item',
-        emoji: '🆕'
-      };
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setCompletedOrders(data.completedOrders || []);
+      setPendingOrders(data.pendingOrders || []);
 
-      const hasWishlist = parsed.categories.some(c => c.name === 'Wishlist');
-      const hasNewItem = parsed.categories.some(c => c.name === 'New Item');
-
-      const categories = [...parsed.categories];
-      if (!hasWishlist) categories.push(wishlistCategory);
-      if (!hasNewItem) categories.push(newItemCategory);
-
-      setItems(parsed.items);
-      setCategories(categories);
-      setSuppliers(parsed.suppliers);
+      await storage.setAll(data);
+      await Promise.all([
+        databaseSync.syncItems(items),
+        databaseSync.syncCategories(categories),
+        databaseSync.syncSuppliers(suppliers),
+        databaseSync.syncTags(tags),
+        databaseSync.syncSettings(settings),
+        databaseSync.syncPendingOrders(pendingOrders),
+        databaseSync.syncCurrentOrder(currentOrder, currentOrderMetadata)
+      ]);
     } catch (error) {
-      console.error('Failed to load default data:', error);
+      console.error('Failed to import data:', error);
+      throw error;
     }
   };
 
-  // Items
-  const addItem = (item: Omit<Item, 'id'>, customId?: string) => {
-    setItems(prev => [...prev, { ...item, id: customId || nanoid() }]);
-  };
-
-  const updateItem = (id: string, updates: Partial<Item>) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
-  };
-
-  const deleteItem = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-    SupabaseSync.deleteItem(id).catch(console.error);
-  };
-
-  // Categories
-  const addCategory = (category: Omit<Category, 'id'>) => {
-    setCategories(prev => [...prev, { ...category, id: nanoid() }]);
-  };
-
-  const updateCategory = (id: string, updates: Partial<Category>) => {
-    setCategories(prev => prev.map(cat => cat.id === id ? { ...cat, ...updates } : cat));
-  };
-
-  const deleteCategory = (id: string) => {
-    setCategories(prev => prev.filter(cat => cat.id !== id));
-    SupabaseSync.deleteCategory(id).catch(console.error);
-  };
-
-  // Suppliers
-  const addSupplier = (supplier: Omit<Supplier, 'id'>) => {
-    const newSupplier: Supplier = {
-      ...supplier,
-      id: nanoid(),
-      defaultOrderType: supplier.defaultOrderType || 'Delivery',
-      defaultPaymentMethod: supplier.defaultPaymentMethod || 'COD',
-    };
-    setSuppliers(prev => [...prev, newSupplier]);
-  };
-
-  const updateSupplier = (id: string, updates: Partial<Supplier>) => {
-    setSuppliers(prev => prev.map(sup => sup.id === id ? { ...sup, ...updates } : sup));
-  };
-
-  const deleteSupplier = (id: string) => {
-    setSuppliers(prev => prev.filter(sup => sup.id !== id));
-    SupabaseSync.deleteSupplier(id).catch(console.error);
-  };
-
-  // Tags
-  const addTag = (tag: Omit<Tag, 'id'>) => {
-    setTags(prev => [...prev, { ...tag, id: nanoid() }]);
-  };
-
-  const updateTag = (id: string, updates: Partial<Tag>) => {
-    setTags(prev => prev.map(tag => tag.id === id ? { ...tag, ...updates } : tag));
-  };
-
-  const deleteTag = (id: string) => {
-    setTags(prev => prev.filter(tag => tag.id !== id));
-    SupabaseSync.deleteTag(id).catch(console.error);
-  };
-
-
-  // Settings
-  const updateSettings = (updates: Partial<AppSettings>) => {
-    setSettings(prev => ({ ...prev, ...updates }));
-  };
-
-  // Order
-  const addToOrder = (item: Item, quantity: number, storeTag?: string) => {
-    setCurrentOrder(prev => {
-      const existing = prev.find(oi => oi.item.id === item.id && oi.storeTag === storeTag);
-      if (existing) {
-        return prev.map(oi => 
-          oi.item.id === item.id && oi.storeTag === storeTag
-            ? { ...oi, quantity: oi.quantity + quantity }
-            : oi
-        );
-      }
-      return [...prev, { item, quantity, storeTag }];
-    });
-  };
-
-  const updateOrderItem = (itemId: string, quantity: number, storeTag?: string) => {
-    setCurrentOrder(prev => 
-      prev.map(oi => oi.item.id === itemId && oi.storeTag === storeTag ? { ...oi, quantity } : oi)
-    );
-  };
-
-  const removeFromOrder = (itemId: string, storeTag?: string) => {
-    setCurrentOrder(prev => prev.filter(oi => !(oi.item.id === itemId && oi.storeTag === storeTag)));
-  };
-
-  const updateOrderMetadata = (metadata: Partial<CurrentOrderMetadata>) => {
-    setCurrentOrderMetadata(prev => ({ ...prev, ...metadata }));
-  };
-
-  const clearOrder = () => {
-    setCurrentOrder([]);
-    setCurrentOrderMetadata({ orderType: 'Delivery' });
-  };
-
-  const completeOrder = () => {
-    if (currentOrder.length === 0) return;
-    
-    const storeTags = Array.from(new Set(currentOrder.map(oi => oi.storeTag).filter(Boolean))) as string[];
-    
-    const completedOrder: CompletedOrder = {
-      id: nanoid(),
-      items: currentOrder,
-      completedAt: new Date(),
-      storeTags,
-    };
-    
-    setCompletedOrders(prev => [...prev, completedOrder]);
-    setCurrentOrder([]);
-    setCurrentOrderMetadata({ orderType: 'Delivery' });
-  };
-
-  // Pending Orders
-  const addPendingOrder = (order: Omit<PendingOrder, 'id' | 'createdAt' | 'updatedAt'>) => {
-    // Smart order routing: check if there's an existing pending/processing order for this supplier and store
-    const existingOrder = pendingOrders.find(
-      po =>
-        po.supplier === order.supplier &&
-        po.storeTag === order.storeTag &&
-        (po.status === 'pending' || po.status === 'processing')
-    );
-
-    if (existingOrder) {
-      // Add items to existing order instead of creating a new one
-      const mergedItems = [...existingOrder.items];
-
-      order.items.forEach(newItem => {
-        const existingItemIndex = mergedItems.findIndex(
-          mi => mi.item.id === newItem.item.id
-        );
-
-        if (existingItemIndex >= 0) {
-          // Item already exists, increase quantity
-          mergedItems[existingItemIndex] = {
-            ...mergedItems[existingItemIndex],
-            quantity: mergedItems[existingItemIndex].quantity + newItem.quantity
-          };
-        } else {
-          // New item, add to order
-          mergedItems.push(newItem);
-        }
-      });
-
-      updatePendingOrder(existingOrder.id, {
-        items: mergedItems,
-        updatedAt: new Date()
-      });
-
-      return existingOrder.id;
-    } else {
-      // Create new order
-      const newOrder: PendingOrder = {
-        ...order,
-        id: nanoid(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setPendingOrders(prev => [...prev, newOrder]);
-      return newOrder.id;
-    }
-  };
-
-  const updatePendingOrder = (id: string, orderUpdate: Partial<PendingOrder>) => {
-    setPendingOrders(prev =>
-      prev.map(order =>
-        order.id === id ? { ...order, ...orderUpdate, updatedAt: new Date() } : order
-      )
-    );
-  };
-
-  const deletePendingOrder = (id: string) => {
-    setPendingOrders(prev => prev.filter(order => order.id !== id));
-    SupabaseSync.deletePendingOrder(id).catch(console.error);
-  };
-
-  // Import/Export
-  const exportData = () => {
-    return {
-      items,
-      categories,
-      suppliers,
-      tags,
-      settings,
-      completedOrders,
-      pendingOrders,
-      currentOrder,
-      currentOrderMetadata,
-    };
-  };
-
-  const importData = (data: StorageData) => {
-    if (data.items) setItems(data.items);
-    if (data.categories) setCategories(data.categories);
-    if (data.suppliers) setSuppliers(data.suppliers);
-    if (data.tags) setTags(data.tags);
-    if (data.settings) setSettings(data.settings);
-    if (data.completedOrders) setCompletedOrders(data.completedOrders);
-    if (data.pendingOrders) setPendingOrders(data.pendingOrders);
+  const loadDefaultData = async () => {
+    const defaultData = parseDefaultData(defaultDataJson);
+    await importData(defaultData);
   };
 
   return (
     <AppContext.Provider
       value={{
+        // State
         items,
         categories,
         suppliers,
@@ -429,28 +232,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentOrderMetadata,
         completedOrders,
         pendingOrders,
-        addItem,
-        updateItem,
-        deleteItem,
-        addCategory,
-        updateCategory,
-        deleteCategory,
-        addSupplier,
-        updateSupplier,
-        deleteSupplier,
-        addTag,
-        updateTag,
-        deleteTag,
-        updateSettings,
-        addToOrder,
-        updateOrderItem,
-        removeFromOrder,
-        updateOrderMetadata,
-        clearOrder,
-        completeOrder,
-        addPendingOrder,
-        updatePendingOrder,
-        deletePendingOrder,
+        
+        // Operations
+        itemOps,
+        categoryOps,
+        supplierOps,
+        tagOps,
+        orderOps,
+        settingsOps,
+        
+        // Data management
         exportData,
         importData,
         loadDefaultData,
@@ -459,12 +250,4 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AppContext.Provider>
   );
-}
-
-export function useApp() {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within AppProvider');
-  }
-  return context;
 }

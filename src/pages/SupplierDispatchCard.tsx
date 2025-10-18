@@ -115,7 +115,7 @@ export function SupplierDispatchCard({
   onUpdateSupplier,
   isNewCard = false,
 }: SupplierDispatchCardProps) {
-  const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useApp();
+  const { suppliers, supplierOps } = useApp();
   const [editingSupplier, setEditingSupplier] = useState(false);
   const [supplierName, setSupplierName] = useState(card.supplier);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -195,7 +195,7 @@ export function SupplierDispatchCard({
                     }}
                     onCreateNew={(name) => {
                         const upperName = name.toUpperCase();
-                        addSupplier({
+                        supplierOps.addOne({
                           name: upperName,
                           paymentMethod: 'COD',
                           orderType: 'Delivery',
@@ -321,7 +321,7 @@ export function SupplierDispatchCard({
               setData={setSupplierToEdit}
               onSave={() => {
                 if (supplierToEdit) {
-                  updateSupplier(supplierToEdit.id, supplierToEdit);
+                  supplierOps.updateOne(supplierToEdit.id, supplierToEdit);
                   toast.success('Supplier updated successfully');
                   setEditSupplierDialogOpen(false);
                   setSupplierToEdit(null);
@@ -334,7 +334,7 @@ export function SupplierDispatchCard({
               isEdit={true}
               onDelete={() => {
                 if (supplierToEdit) {
-                  deleteSupplier(supplierToEdit.id);
+                  supplierOps.deleteOne(supplierToEdit.id);
                   toast.success('Supplier deleted successfully');
                   setEditSupplierDialogOpen(false);
                   setSupplierToEdit(null);

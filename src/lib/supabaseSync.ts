@@ -315,17 +315,27 @@ export class SupabaseSync {
     if (!data) {
       return {
         items: [],
-        metadata: { orderType: 'Delivery' }
+        metadata: {
+          id: crypto.randomUUID(),
+          status: 'draft',
+          orderType: 'Delivery',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
       };
     }
 
     return {
       items: data.items || [],
       metadata: {
+        id: data.id || crypto.randomUUID(),
+        status: data.status || 'draft',
         orderType: data.order_type || 'Delivery',
         paymentMethod: data.payment_method,
         manager: data.manager,
-        store: data.store
+        store: data.store,
+        createdAt: data.created_at || new Date().toISOString(),
+        updatedAt: data.updated_at || new Date().toISOString()
       }
     };
   }

@@ -1,326 +1,168 @@
-import { supabase } from './supabase';
-import type {
-  Item,
-  Category,
-  Supplier,
-  Tag,
-  PendingOrder,
-  AppSettings,
-} from '@/types';
+import { Item, Category, Supplier, Tag, AppSettings, PendingOrder, OrderItem, CurrentOrderMetadata } from '@/types';
+import { DatabaseSync } from '@/types/sync';
+import { SupabaseSync } from './supabaseSync';
 
-export interface DatabaseSync {
-  syncItems: (items: Item[]) => Promise<void>;
-  syncCategories: (categories: Category[]) => Promise<void>;
-  syncSuppliers: (suppliers: Supplier[]) => Promise<void>;
-  syncTags: (tags: Tag[]) => Promise<void>;
-  syncPendingOrders: (orders: PendingOrder[]) => Promise<void>;
-  syncSettings: (settings: AppSettings) => Promise<void>;
-  loadFromDatabase: () => Promise<{
-    items: Item[];
-    categories: Category[];
-    suppliers: Supplier[];
-    tags: Tag[];
-    pendingOrders: PendingOrder[];
-    settings: AppSettings | null;
-  }>;
-}
-
-const parseSupabaseDate = (dateString: string | null): Date | undefined => {
-  if (!dateString) return undefined;
-  return new Date(dateString);
+// Sync Core Data
+const syncItems = async (items: Item[]): Promise<void> => {
+  await SupabaseSync.syncItems(items);
 };
 
-export const createDatabaseSync = (): DatabaseSync => {
-  return {
-    syncItems: async (items: Item[]) => {
-      try {
-        for (const item of items) {
-          const { error } = await supabase
-            .from('items')
-            .upsert({
-              id: item.id,
-              name: item.name,
-              khmer_name: item.khmerName,
-              category: item.category,
-              supplier: item.supplier,
-              tags: item.tags,
-              unit_tag: item.unitTag,
-              unit_price: item.unitPrice,
-              variant_tags: item.variantTags,
-              last_ordered: item.lastOrdered,
-              order_count: item.orderCount || 0,
-              last_held: item.lastHeld,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'id'
-            });
-
-          if (error) console.error('Error syncing item:', error);
-        }
-      } catch (error) {
-        console.error('Failed to sync items:', error);
-      }
-    },
-
-    syncCategories: async (categories: Category[]) => {
-      try {
-        for (const category of categories) {
-          const { error } = await supabase
-            .from('categories')
-            .upsert({
-              id: category.id,
-              name: category.name,
-              emoji: category.emoji,
-              store_tag: category.storeTag,
-              main_category: category.mainCategory,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'id'
-            });
-
-          if (error) console.error('Error syncing category:', error);
-        }
-      } catch (error) {
-        console.error('Failed to sync categories:', error);
-      }
-    },
-
-    syncSuppliers: async (suppliers: Supplier[]) => {
-      try {
-        for (const supplier of suppliers) {
-          const { error } = await supabase
-            .from('suppliers')
-            .upsert({
-              id: supplier.id,
-              name: supplier.name,
-              contact: supplier.contact,
-              telegram_id: supplier.telegramId,
-              payment_method: supplier.paymentMethod,
-              order_type: supplier.orderType,
-              categories: supplier.categories || [],
-              default_payment_method: supplier.defaultPaymentMethod,
-              default_order_type: supplier.defaultOrderType,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'id'
-            });
-
-          if (error) console.error('Error syncing supplier:', error);
-        }
-      } catch (error) {
-        console.error('Failed to sync suppliers:', error);
-      }
-    },
-
-    syncTags: async (tags: Tag[]) => {
-      try {
-        for (const tag of tags) {
-          const { error } = await supabase
-            .from('tags')
-            .upsert({
-              id: tag.id,
-              name: tag.name,
-              color: tag.color,
-              category: tag.category,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'id'
-            });
-
-          if (error) console.error('Error syncing tag:', error);
-        }
-      } catch (error) {
-        console.error('Failed to sync tags:', error);
-      }
-    },
-
-
-    syncPendingOrders: async (orders: PendingOrder[]) => {
-      try {
-        for (const order of orders) {
-          const { error } = await supabase
-            .from('pending_orders')
-            .upsert({
-              id: order.id,
-              supplier: order.supplier,
-              items: order.items,
-              status: order.status,
-              store_tag: order.storeTag,
-              order_type: order.orderType,
-              payment_method: order.paymentMethod,
-              contact_person: order.contactPerson,
-              notes: order.notes,
-              invoice_url: order.invoiceUrl,
-              amount: order.amount,
-              is_received: order.isReceived || false,
-              is_paid: order.isPaid || false,
-              completed_at: order.completedAt?.toISOString() || null,
-              created_at: order.createdAt.toISOString(),
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'id'
-            });
-
-          if (error) console.error('Error syncing pending order:', error);
-        }
-      } catch (error) {
-        console.error('Failed to sync pending orders:', error);
-      }
-    },
-
-    syncSettings: async (settings: AppSettings) => {
-      try {
-        const { data: existing, error: fetchError } = await supabase
-          .from('settings')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
-
-        if (fetchError) {
-          console.error('Error fetching settings:', fetchError);
-          return;
-        }
-
-        if (existing) {
-          const { error } = await supabase
-            .from('settings')
-            .update({
-              default_supplier: settings.defaultSupplier,
-              order_template: settings.orderTemplate,
-              pos_mode: settings.posMode,
-              autosave: settings.autosave,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existing.id);
-
-          if (error) console.error('Error updating settings:', error);
-        } else {
-          const { error } = await supabase
-            .from('settings')
-            .insert({
-              default_supplier: settings.defaultSupplier,
-              order_template: settings.orderTemplate,
-              pos_mode: settings.posMode,
-              autosave: settings.autosave,
-              updated_at: new Date().toISOString(),
-            });
-
-          if (error) console.error('Error inserting settings:', error);
-        }
-      } catch (error) {
-        console.error('Failed to sync settings:', error);
-      }
-    },
-
-    loadFromDatabase: async () => {
-      try {
-        const [
-          itemsResult,
-          categoriesResult,
-          suppliersResult,
-          tagsResult,
-          ordersResult,
-          settingsResult,
-        ] = await Promise.all([
-          supabase.from('items').select('*'),
-          supabase.from('categories').select('*'),
-          supabase.from('suppliers').select('*'),
-          supabase.from('tags').select('*'),
-          supabase.from('pending_orders').select('*'),
-          supabase.from('settings').select('*').limit(1).maybeSingle(),
-        ]);
-
-        const items: Item[] = (itemsResult.data || []).map(row => ({
-          id: row.id,
-          name: row.name,
-          khmerName: row.khmer_name,
-          category: row.category,
-          supplier: row.supplier,
-          tags: row.tags || [],
-          unitTag: row.unit_tag,
-          unitPrice: row.unit_price,
-          variantTags: row.variant_tags,
-          lastOrdered: row.last_ordered,
-          orderCount: row.order_count || 0,
-          lastHeld: row.last_held,
-        }));
-
-        const categories: Category[] = (categoriesResult.data || []).map(row => ({
-          id: row.id,
-          name: row.name,
-          emoji: row.emoji,
-          storeTag: row.store_tag,
-          mainCategory: row.main_category,
-        }));
-
-        const suppliers: Supplier[] = (suppliersResult.data || []).map(row => ({
-          id: row.id,
-          name: row.name,
-          contact: row.contact,
-          telegramId: row.telegram_id,
-          paymentMethod: row.payment_method,
-          orderType: row.order_type,
-          categories: row.categories || [],
-          defaultPaymentMethod: row.default_payment_method,
-          defaultOrderType: row.default_order_type,
-        }));
-
-        const tags: Tag[] = (tagsResult.data || []).map(row => ({
-          id: row.id,
-          name: row.name,
-          color: row.color,
-          category: row.category,
-        }));
-
-        const pendingOrders: PendingOrder[] = (ordersResult.data || []).map(row => ({
-          id: row.id,
-          supplier: row.supplier,
-          items: row.items || [],
-          status: row.status,
-          storeTag: row.store_tag,
-          orderType: row.order_type,
-          paymentMethod: row.payment_method,
-          contactPerson: row.contact_person,
-          notes: row.notes,
-          invoiceUrl: row.invoice_url,
-          amount: row.amount,
-          isReceived: row.is_received || false,
-          isPaid: row.is_paid || false,
-          completedAt: parseSupabaseDate(row.completed_at),
-          createdAt: new Date(row.created_at),
-          updatedAt: new Date(row.updated_at),
-        }));
-
-        const settings: AppSettings | null = settingsResult.data
-          ? {
-              defaultSupplier: settingsResult.data.default_supplier,
-              orderTemplate: settingsResult.data.order_template,
-              posMode: settingsResult.data.pos_mode,
-              autosave: settingsResult.data.autosave,
-            }
-          : null;
-
-        return {
-          items,
-          categories,
-          suppliers,
-          tags,
-          pendingOrders,
-          settings,
-        };
-      } catch (error) {
-        console.error('Failed to load from database:', error);
-        return {
-          items: [],
-          categories: [],
-          suppliers: [],
-          tags: [],
-          pendingOrders: [],
-          settings: null,
-        };
-      }
-    },
-  };
+const syncCategories = async (categories: Category[]): Promise<void> => {
+  await SupabaseSync.syncCategories(categories);
 };
 
-export const dbSync = createDatabaseSync();
+const syncSuppliers = async (suppliers: Supplier[]): Promise<void> => {
+  await SupabaseSync.syncSuppliers(suppliers);
+};
+
+const syncTags = async (tags: Tag[]): Promise<void> => {
+  await SupabaseSync.syncTags(tags);
+};
+
+const syncSettings = async (settings: AppSettings): Promise<void> => {
+  await SupabaseSync.syncSettings(settings);
+};
+
+const syncCurrentOrder = async (items: OrderItem[], metadata: CurrentOrderMetadata): Promise<void> => {
+  await SupabaseSync.syncCurrentOrder(items, metadata);
+};
+
+const syncPendingOrders = async (orders: PendingOrder[]): Promise<void> => {
+  await SupabaseSync.syncPendingOrders(orders);
+};
+
+// Individual data getters
+const getItems = async (): Promise<Item[]> => {
+  return await SupabaseSync.getItems();
+};
+
+const getCategories = async (): Promise<Category[]> => {
+  return await SupabaseSync.getCategories();
+};
+
+const getSuppliers = async (): Promise<Supplier[]> => {
+  return await SupabaseSync.getSuppliers();
+};
+
+const getTags = async (): Promise<Tag[]> => {
+  return await SupabaseSync.getTags();
+};
+
+const getSettings = async (): Promise<AppSettings> => {
+  return await SupabaseSync.getSettings();
+};
+
+const getPendingOrders = async (): Promise<PendingOrder[]> => {
+  return await SupabaseSync.getPendingOrders();
+};
+
+// Load Data
+const loadFromDatabase = async (): Promise<{
+  items: Item[];
+  categories: Category[];
+  suppliers: Supplier[];
+  tags: Tag[];
+  settings: AppSettings;
+  pendingOrders: PendingOrder[];
+}> => {
+  const [items, categories, suppliers, tags, settings, pendingOrders] = await Promise.all([
+    SupabaseSync.getItems(),
+    SupabaseSync.getCategories(),
+    SupabaseSync.getSuppliers(),
+    SupabaseSync.getTags(),
+    SupabaseSync.getSettings(),
+    SupabaseSync.getPendingOrders()
+  ]);
+
+  return { items, categories, suppliers, tags, settings, pendingOrders };
+};
+
+const getCurrentOrder = async (): Promise<{
+  items: OrderItem[];
+  metadata: CurrentOrderMetadata;
+}> => {
+  return await SupabaseSync.getCurrentOrder();
+};
+
+// Delete Operations
+const deleteItem = async (id: string): Promise<void> => {
+  await SupabaseSync.deleteItem(id);
+};
+
+const deleteCategory = async (id: string): Promise<void> => {
+  await SupabaseSync.deleteCategory(id);
+};
+
+const deleteSupplier = async (id: string): Promise<void> => {
+  await SupabaseSync.deleteSupplier(id);
+};
+
+const deleteTag = async (id: string): Promise<void> => {
+  await SupabaseSync.deleteTag(id);
+};
+
+const deletePendingOrder = async (id: string): Promise<void> => {
+  await SupabaseSync.deletePendingOrder(id);
+};
+
+// Helper Operations
+const saveDraft = async (): Promise<void> => {
+  // Currently a no-op since draft saving is handled by syncCurrentOrder
+};
+
+const discardDraft = async (): Promise<void> => {
+  // Discard by syncing an empty order
+  await SupabaseSync.syncCurrentOrder([], {
+    id: crypto.randomUUID(),
+    status: 'draft',
+    orderType: 'Delivery',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+};
+
+const clearPendingOrders = async (): Promise<void> => {
+  // We'll implement this by syncing an empty array
+  await SupabaseSync.syncPendingOrders([]);
+};
+
+const archiveOrder = async (orderId: string): Promise<void> => {
+  // For now, archiving just means deleting the pending order
+  await SupabaseSync.deletePendingOrder(orderId);
+};
+
+export const databaseSync: DatabaseSync = {
+  // Core sync operations
+  syncItems,
+  syncCategories,
+  syncSuppliers,
+  syncTags,
+  syncSettings,
+  syncCurrentOrder,
+  syncPendingOrders,
+  
+  // Individual data getters
+  getItems,
+  getCategories,
+  getSuppliers,
+  getTags,
+  getSettings,
+  getPendingOrders,
+
+  // Data loading
+  loadFromDatabase,
+  getCurrentOrder,
+
+  // Delete operations
+  deleteItem,
+  deleteCategory,
+  deleteSupplier,
+  deleteTag,
+  deletePendingOrder,
+
+  // Helper operations
+  saveDraft,
+  discardDraft,
+  clearPendingOrders,
+  archiveOrder,
+};
