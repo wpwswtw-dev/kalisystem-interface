@@ -8,15 +8,66 @@ import { Download, Upload, Database, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage } from '@/lib/storage';
 import { useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { RefreshCw } from 'lucide-react';
+
+interface DataTypeSelection {
+  items: boolean;
+  categories: boolean;
+  suppliers: boolean;
+  tags: boolean;
+  settings: boolean;
+  orders: boolean;
+}
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { exportData, importData, loadDefaultData, items, categories, suppliers, tags, settings, updateSettings } = useApp();
+  const { exportData, importData, loadDefaultData, manualSync, items, categories, suppliers, tags, settings, updateSettings } = useApp();
   const [importUrl, setImportUrl] = useState('');
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [importMergeMode, setImportMergeMode] = useState(false);
+  const [exportSelection, setExportSelection] = useState<DataTypeSelection>({
+    items: true,
+    categories: true,
+    suppliers: true,
+    tags: true,
+    settings: true,
+    orders: true
+  });
+  const [importSelection, setImportSelection] = useState<DataTypeSelection>({
+    items: true,
+    categories: true,
+    suppliers: true,
+    tags: true,
+    settings: true,
+    orders: true
+  });
 
   const handleExport = () => {
-    const data = exportData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    setExportDialogOpen(true);
+  };
+
+  const confirmExport = () => {
+    const fullData = exportData();
+    const selectedData: any = {};
+
+    if (exportSelection.items) selectedData.items = fullData.items;
+    if (exportSelection.categories) selectedData.categories = fullData.categories;
+    if (exportSelection.suppliers) selectedData.suppliers = fullData.suppliers;
+    if (exportSelection.tags) selectedData.tags = fullData.tags;
+    if (exportSelection.settings) selectedData.settings = fullData.settings;
+    if (exportSelection.orders) {
+      selectedData.currentOrder = fullData.currentOrder;
+      selectedData.currentOrderMetadata = fullData.currentOrderMetadata;
+      selectedData.completedOrders = fullData.completedOrders;
+      selectedData.pendingOrders = fullData.pendingOrders;
+    }
+
+    const blob = new Blob([JSON.stringify(selectedData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -24,9 +75,14 @@ export default function Settings() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Data exported successfully!');
+    setExportDialogOpen(false);
   };
 
   const handleImport = () => {
+    setImportDialogOpen(true);
+  };
+
+  const confirmImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -37,8 +93,70 @@ export default function Settings() {
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        importData(data);
-        toast.success('Data imported successfully!');
+
+        if (importMergeMode) {
+          const currentData = exportData();
+          const mergedData: any = { ...currentData };
+
+          if (importSelection.items && data.items) {
+            mergedData.items = [...currentData.items, ...data.items.filter((item: any) => !currentData.items.find((i: any) => i.id === item.id))];
+          }
+          if (importSelection.categories && data.categories) {
+            mergedData.categories = [...currentData.categories, ...data.categories.filter((cat: any) => !currentData.categories.find((c: any) => c.id === cat.id))];
+          }
+          if (importSelection.suppliers && data.suppliers) {
+            mergedData.suppliers = [...currentData.suppliers, ...data.suppliers.filter((sup: any) => !currentData.suppliers.find((s: any) => s.id === sup.id))];
+          }
+          if (importSelection.tags && data.tags) {
+            mergedData.tags = [...currentData.tags, ...data.tags.filter((tag: any) => !currentData.tags.find((t: any) => t.id === tag.id))];
+          }
+          if (importSelection.settings && data.settings) {
+            mergedData.settings = { ...currentData.settings, ...data.settings };
+          }
+          if (importSelection.orders) {
+            if (data.currentOrder) mergedData.currentOrder = data.currentOrder;
+            if (data.currentOrderMetadata) mergedData.currentOrderMetadata = data.currentOrderMetadata;
+            if (data.completedOrders) mergedData.completedOrders = [...currentData.completedOrders, ...data.completedOrders];
+            if (data.pendingOrders) mergedData.pendingOrders = [...currentData.pendingOrders, ...data.pendingOrders];
+          }
+
+          await importData(mergedData);
+        } else {
+          const selectedData: any = {};
+          const currentData = exportData();
+
+          if (importSelection.items && data.items) selectedData.items = data.items;
+          else selectedData.items = currentData.items;
+
+          if (importSelection.categories && data.categories) selectedData.categories = data.categories;
+          else selectedData.categories = currentData.categories;
+
+          if (importSelection.suppliers && data.suppliers) selectedData.suppliers = data.suppliers;
+          else selectedData.suppliers = currentData.suppliers;
+
+          if (importSelection.tags && data.tags) selectedData.tags = data.tags;
+          else selectedData.tags = currentData.tags;
+
+          if (importSelection.settings && data.settings) selectedData.settings = data.settings;
+          else selectedData.settings = currentData.settings;
+
+          if (importSelection.orders) {
+            if (data.currentOrder) selectedData.currentOrder = data.currentOrder;
+            if (data.currentOrderMetadata) selectedData.currentOrderMetadata = data.currentOrderMetadata;
+            if (data.completedOrders) selectedData.completedOrders = data.completedOrders;
+            if (data.pendingOrders) selectedData.pendingOrders = data.pendingOrders;
+          } else {
+            selectedData.currentOrder = currentData.currentOrder;
+            selectedData.currentOrderMetadata = currentData.currentOrderMetadata;
+            selectedData.completedOrders = currentData.completedOrders;
+            selectedData.pendingOrders = currentData.pendingOrders;
+          }
+
+          await importData(selectedData);
+        }
+
+        toast.success(`Data ${importMergeMode ? 'merged' : 'imported'} successfully!`);
+        setImportDialogOpen(false);
       } catch (error) {
         toast.error('Failed to import data. Invalid file format.');
       }
@@ -51,6 +169,22 @@ export default function Settings() {
       storage.clearAll();
       loadDefaultData();
       toast.success('Reset to default data');
+    }
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await manualSync();
+      if (result.success) {
+        toast.success('Data synced successfully with Supabase!');
+      } else {
+        toast.error('Sync failed. Please try again.');
+      }
+    } catch (error) {
+      toast.error('Sync failed. Please try again.');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -187,9 +321,162 @@ export default function Settings() {
               <Database className="w-4 h-4" />
               Reset to Default Data
             </Button>
+            <Button
+              onClick={handleManualSync}
+              variant="outline"
+              className="w-full justify-start gap-2"
+              disabled={isSyncing}
+              data-testid="button-manual-sync"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : 'Manual Sync to Supabase'}
+            </Button>
           </div>
         </Card>
       </div>
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Data</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">Select the data types to export:</p>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="export-items"
+                  checked={exportSelection.items}
+                  onCheckedChange={(checked) => setExportSelection({ ...exportSelection, items: !!checked })}
+                />
+                <Label htmlFor="export-items" className="cursor-pointer">Items ({items.length})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="export-categories"
+                  checked={exportSelection.categories}
+                  onCheckedChange={(checked) => setExportSelection({ ...exportSelection, categories: !!checked })}
+                />
+                <Label htmlFor="export-categories" className="cursor-pointer">Categories ({categories.length})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="export-suppliers"
+                  checked={exportSelection.suppliers}
+                  onCheckedChange={(checked) => setExportSelection({ ...exportSelection, suppliers: !!checked })}
+                />
+                <Label htmlFor="export-suppliers" className="cursor-pointer">Suppliers ({suppliers.length})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="export-tags"
+                  checked={exportSelection.tags}
+                  onCheckedChange={(checked) => setExportSelection({ ...exportSelection, tags: !!checked })}
+                />
+                <Label htmlFor="export-tags" className="cursor-pointer">Tags ({tags.length})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="export-settings"
+                  checked={exportSelection.settings}
+                  onCheckedChange={(checked) => setExportSelection({ ...exportSelection, settings: !!checked })}
+                />
+                <Label htmlFor="export-settings" className="cursor-pointer">Settings</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="export-orders"
+                  checked={exportSelection.orders}
+                  onCheckedChange={(checked) => setExportSelection({ ...exportSelection, orders: !!checked })}
+                />
+                <Label htmlFor="export-orders" className="cursor-pointer">Orders (Current & History)</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>Cancel</Button>
+            <Button onClick={confirmExport}>Export</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Data</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">Select the data types to import:</p>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="import-items"
+                  checked={importSelection.items}
+                  onCheckedChange={(checked) => setImportSelection({ ...importSelection, items: !!checked })}
+                />
+                <Label htmlFor="import-items" className="cursor-pointer">Items</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="import-categories"
+                  checked={importSelection.categories}
+                  onCheckedChange={(checked) => setImportSelection({ ...importSelection, categories: !!checked })}
+                />
+                <Label htmlFor="import-categories" className="cursor-pointer">Categories</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="import-suppliers"
+                  checked={importSelection.suppliers}
+                  onCheckedChange={(checked) => setImportSelection({ ...importSelection, suppliers: !!checked })}
+                />
+                <Label htmlFor="import-suppliers" className="cursor-pointer">Suppliers</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="import-tags"
+                  checked={importSelection.tags}
+                  onCheckedChange={(checked) => setImportSelection({ ...importSelection, tags: !!checked })}
+                />
+                <Label htmlFor="import-tags" className="cursor-pointer">Tags</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="import-settings"
+                  checked={importSelection.settings}
+                  onCheckedChange={(checked) => setImportSelection({ ...importSelection, settings: !!checked })}
+                />
+                <Label htmlFor="import-settings" className="cursor-pointer">Settings</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="import-orders"
+                  checked={importSelection.orders}
+                  onCheckedChange={(checked) => setImportSelection({ ...importSelection, orders: !!checked })}
+                />
+                <Label htmlFor="import-orders" className="cursor-pointer">Orders (Current & History)</Label>
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="import-merge"
+                  checked={importMergeMode}
+                  onCheckedChange={(checked) => setImportMergeMode(!!checked)}
+                />
+                <Label htmlFor="import-merge" className="cursor-pointer">Merge with existing data (preserve current data)</Label>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">When enabled, new data will be added without replacing existing entries</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Cancel</Button>
+            <Button onClick={confirmImport}>Select File to Import</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -221,6 +221,111 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await importData(defaultData);
   };
 
+  const manualSync = async () => {
+    try {
+      await Promise.all([
+        databaseSync.syncItems(items),
+        databaseSync.syncCategories(categories),
+        databaseSync.syncSuppliers(suppliers),
+        databaseSync.syncTags(tags),
+        databaseSync.syncSettings(settings),
+        databaseSync.syncPendingOrders(pendingOrders),
+        databaseSync.syncCurrentOrder(currentOrder, currentOrderMetadata)
+      ]);
+      return { success: true };
+    } catch (error) {
+      console.error('Manual sync failed:', error);
+      return { success: false, error };
+    }
+  };
+
+  // Wrapper functions for convenience
+  const addItem = async (item: Omit<Item, 'id'>) => {
+    const newItem = await itemOps.addOne(item);
+    setItems(prev => [...prev, newItem]);
+    return newItem;
+  };
+
+  const updateItem = async (id: string, updates: Partial<Item>) => {
+    const updatedItem = await itemOps.updateOne(id, updates);
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+    return updatedItem;
+  };
+
+  const deleteItem = async (id: string) => {
+    await itemOps.deleteOne(id);
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const addSupplier = async (supplier: Omit<Supplier, 'id'>) => {
+    const newSupplier = await supplierOps.addOne(supplier);
+    setSuppliers(prev => [...prev, newSupplier]);
+    return newSupplier;
+  };
+
+  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    const updatedSupplier = await supplierOps.updateOne(id, updates);
+    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    return updatedSupplier;
+  };
+
+  const deleteSupplier = async (id: string) => {
+    const supplierToDelete = suppliers.find(s => s.id === id);
+    if (!supplierToDelete) return;
+
+    const kaliSupplier = suppliers.find(s => s.name.toUpperCase() === 'KALI');
+    const kaliSupplierName = kaliSupplier?.name || 'KALI';
+
+    const itemsToReassign = items.filter(item => item.supplier === supplierToDelete.name);
+
+    for (const item of itemsToReassign) {
+      await updateItem(item.id, { supplier: kaliSupplierName });
+    }
+
+    await supplierOps.deleteOne(id);
+    setSuppliers(prev => prev.filter(s => s.id !== id));
+  };
+
+  const addCategory = async (category: Omit<Category, 'id'>) => {
+    const newCategory = await categoryOps.addOne(category);
+    setCategories(prev => [...prev, newCategory]);
+    return newCategory;
+  };
+
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
+    const updatedCategory = await categoryOps.updateOne(id, updates);
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    return updatedCategory;
+  };
+
+  const deleteCategory = async (id: string) => {
+    await categoryOps.deleteOne(id);
+    setCategories(prev => prev.filter(c => c.id !== id));
+  };
+
+  const addTag = async (tag: Omit<Tag, 'id'>) => {
+    const newTag = await tagOps.addOne(tag);
+    setTags(prev => [...prev, newTag]);
+    return newTag;
+  };
+
+  const updateTag = async (id: string, updates: Partial<Tag>) => {
+    const updatedTag = await tagOps.updateOne(id, updates);
+    setTags(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    return updatedTag;
+  };
+
+  const deleteTag = async (id: string) => {
+    await tagOps.deleteOne(id);
+    setTags(prev => prev.filter(t => t.id !== id));
+  };
+
+  const updateSettings = async (updates: Partial<AppSettings>) => {
+    const updatedSettings = await settingsOps.updateOne('default', updates);
+    setSettings(prev => ({ ...prev, ...updates }));
+    return updatedSettings;
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -234,7 +339,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentOrderMetadata,
         completedOrders,
         pendingOrders,
-        
+
         // Operations
         itemOps,
         categoryOps,
@@ -249,11 +354,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           onStateChange: setPendingOrders,
           onError: (error: Error) => console.error('Pending order operation failed:', error)
         },
-        
+
+        // Wrapper functions for convenience
+        addItem,
+        updateItem,
+        deleteItem,
+        addSupplier,
+        updateSupplier,
+        deleteSupplier,
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        addTag,
+        updateTag,
+        deleteTag,
+        updateSettings,
+
         // Data management
         exportData,
         importData,
         loadDefaultData,
+        manualSync,
       }}
     >
       {children}

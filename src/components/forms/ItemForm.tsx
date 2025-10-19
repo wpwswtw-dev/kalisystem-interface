@@ -4,12 +4,13 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import React from 'react';
 
-export function ItemForm({ data, setData, onSave, onCancel, isEdit, categories, suppliers }: {
+export function ItemForm({ data, setData, onSave, onCancel, isEdit, onDelete, categories, suppliers }: {
   data: any;
   setData: (d: any) => void;
   onSave: (data: any) => void;
   onCancel: () => void;
   isEdit?: boolean;
+  onDelete?: () => void;
   categories: any[];
   suppliers: any[];
 }) {
@@ -65,6 +66,11 @@ export function ItemForm({ data, setData, onSave, onCancel, isEdit, categories, 
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
+        {isEdit && onDelete && (
+          <Button variant="destructive" onClick={onDelete} data-testid="button-delete-item">
+            Delete
+          </Button>
+        )}
         <Button onClick={onSave} disabled={!data.name} data-testid={isEdit ? 'button-save-item-edit' : 'button-save-item-add'}>
           {isEdit ? 'Save Changes' : 'Add Item'}
         </Button>

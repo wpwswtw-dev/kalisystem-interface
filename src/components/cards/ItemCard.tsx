@@ -24,7 +24,7 @@ export function ItemCard({ item, posMode, onQuickAdd, compact = false }: {
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const { categories, suppliers, updateItem } = useApp();
+  const { categories, suppliers, updateItem, deleteItem } = useApp();
   const [editData, setEditData] = useState(item);
 
   const handleMouseDown = () => {
@@ -76,6 +76,10 @@ export function ItemCard({ item, posMode, onQuickAdd, compact = false }: {
             }}
             onCancel={() => setIsEditOpen(false)}
             isEdit={true}
+            onDelete={() => {
+              deleteItem(editData.id);
+              setIsEditOpen(false);
+            }}
             categories={categories}
             suppliers={suppliers}
           />

@@ -11,36 +11,41 @@ import {
 } from '@/types';
 
 export class SupabaseSync {
-  private static syncInProgress = false;
+  private static itemsSyncInProgress = false;
+  private static categoriesSyncInProgress = false;
+  private static suppliersSyncInProgress = false;
+  private static tagsSyncInProgress = false;
 
   static async syncItems(items: Item[]): Promise<void> {
-    if (this.syncInProgress) return;
-    this.syncInProgress = true;
+    if (this.itemsSyncInProgress) return;
+    this.itemsSyncInProgress = true;
 
     try {
-      for (const item of items) {
-        const { error } = await supabase
-          .from('items')
-          .upsert({
-            id: item.id,
-            name: item.name,
-            khmer_name: item.khmerName,
-            category: item.category,
-            supplier: item.supplier,
-            tags: item.tags,
-            unit_tag: item.unitTag,
-            unit_price: item.unitPrice,
-            variant_tags: item.variantTags,
-            last_ordered: item.lastOrdered,
-            order_count: item.orderCount,
-            last_held: item.lastHeld,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'id' });
+      if (items.length === 0) return;
 
-        if (error) throw error;
-      }
+      const itemsData = items.map(item => ({
+        id: item.id,
+        name: item.name,
+        khmer_name: item.khmerName,
+        category: item.category,
+        supplier: item.supplier,
+        tags: item.tags,
+        unit_tag: item.unitTag,
+        unit_price: item.unitPrice,
+        variant_tags: item.variantTags,
+        last_ordered: item.lastOrdered,
+        order_count: item.orderCount,
+        last_held: item.lastHeld,
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('items')
+        .upsert(itemsData, { onConflict: 'id' });
+
+      if (error) throw error;
     } finally {
-      this.syncInProgress = false;
+      this.itemsSyncInProgress = false;
     }
   }
 
@@ -69,26 +74,28 @@ export class SupabaseSync {
   }
 
   static async syncCategories(categories: Category[]): Promise<void> {
-    if (this.syncInProgress) return;
-    this.syncInProgress = true;
+    if (this.categoriesSyncInProgress) return;
+    this.categoriesSyncInProgress = true;
 
     try {
-      for (const category of categories) {
-        const { error } = await supabase
-          .from('categories')
-          .upsert({
-            id: category.id,
-            name: category.name,
-            emoji: category.emoji,
-            store_tag: category.storeTag,
-            main_category: category.mainCategory,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'id' });
+      if (categories.length === 0) return;
 
-        if (error) throw error;
-      }
+      const categoriesData = categories.map(category => ({
+        id: category.id,
+        name: category.name,
+        emoji: category.emoji,
+        store_tag: category.storeTag,
+        main_category: category.mainCategory,
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('categories')
+        .upsert(categoriesData, { onConflict: 'id' });
+
+      if (error) throw error;
     } finally {
-      this.syncInProgress = false;
+      this.categoriesSyncInProgress = false;
     }
   }
 
@@ -110,30 +117,32 @@ export class SupabaseSync {
   }
 
   static async syncSuppliers(suppliers: Supplier[]): Promise<void> {
-    if (this.syncInProgress) return;
-    this.syncInProgress = true;
+    if (this.suppliersSyncInProgress) return;
+    this.suppliersSyncInProgress = true;
 
     try {
-      for (const supplier of suppliers) {
-        const { error } = await supabase
-          .from('suppliers')
-          .upsert({
-            id: supplier.id,
-            name: supplier.name,
-            contact: supplier.contact,
-            telegram_id: supplier.telegramId,
-            payment_method: supplier.paymentMethod,
-            order_type: supplier.orderType,
-            categories: supplier.categories,
-            default_payment_method: supplier.defaultPaymentMethod,
-            default_order_type: supplier.defaultOrderType,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'id' });
+      if (suppliers.length === 0) return;
 
-        if (error) throw error;
-      }
+      const suppliersData = suppliers.map(supplier => ({
+        id: supplier.id,
+        name: supplier.name,
+        contact: supplier.contact,
+        telegram_id: supplier.telegramId,
+        payment_method: supplier.paymentMethod,
+        order_type: supplier.orderType,
+        categories: supplier.categories,
+        default_payment_method: supplier.defaultPaymentMethod,
+        default_order_type: supplier.defaultOrderType,
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('suppliers')
+        .upsert(suppliersData, { onConflict: 'id' });
+
+      if (error) throw error;
     } finally {
-      this.syncInProgress = false;
+      this.suppliersSyncInProgress = false;
     }
   }
 
@@ -159,25 +168,27 @@ export class SupabaseSync {
   }
 
   static async syncTags(tags: Tag[]): Promise<void> {
-    if (this.syncInProgress) return;
-    this.syncInProgress = true;
+    if (this.tagsSyncInProgress) return;
+    this.tagsSyncInProgress = true;
 
     try {
-      for (const tag of tags) {
-        const { error } = await supabase
-          .from('tags')
-          .upsert({
-            id: tag.id,
-            name: tag.name,
-            color: tag.color,
-            category: tag.category,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'id' });
+      if (tags.length === 0) return;
 
-        if (error) throw error;
-      }
+      const tagsData = tags.map(tag => ({
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        category: tag.category,
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('tags')
+        .upsert(tagsData, { onConflict: 'id' });
+
+      if (error) throw error;
     } finally {
-      this.syncInProgress = false;
+      this.tagsSyncInProgress = false;
     }
   }
 
